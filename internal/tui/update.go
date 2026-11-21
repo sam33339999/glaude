@@ -163,6 +163,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, waitForStreamEvent(m.streamCh)
 
 	case StreamDoneMsg:
+		// Only a turn the user did not interrupt feeds /goal and /loop.
+		live := m.streamCh != nil
 		m.mainSnap = nil
 		m = m.recordUsage(msg.Usage)
 		m = m.noteTurnUsage(msg.Usage)
@@ -200,8 +202,19 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// finished (deferred while the /resume picker is open; it drains on close).
 		if m.msgQueue != nil && m.msgQueue.Len() > 0 && m.activeDialog != dialogResume {
 			cmds = append(cmds, processQueueCmd(&m))
+		} else if live {
+			var autoCmd tea.Cmd
+			m, autoCmd = m.onAutoTurnDone()
+			cmds = append(cmds, autoCmd)
 		}
 		return m, tea.Batch(cmds...)
+
+	case loopTickMsg:
+		return m.onLoopTick(msg)
+	case autoRetryMsg:
+		return m.onAutoRetry()
+	case goalVerdictMsg:
+		return m.onGoalVerdict(msg)
 
 	case StreamErrorMsg:
 		m.mainSnap = nil
@@ -450,6 +463,10 @@ func (m AppModel) handleSlashCommand(text string) (AppModel, tea.Cmd) {
 		return m, nil
 	}
 
+	if mm, cmd, ok := m.handleAutoCommand(name, args); ok {
+		return mm, cmd
+	}
+
 	slashCmd := m.commandRegistry.Lookup(name)
 	if slashCmd == nil {
 		m.messages = append(m.messages, newSystemErrorMessage("Unknown command: /"+name+" — type / to see available commands"))
@@ -614,6 +631,8 @@ func (m AppModel) applyCommandResult(result commands.Result, name string) (AppMo
 		m.messages = nil
 		m.queryEngine.SetMessages(nil)
 		m = m.dropUnsentUsers()
+		// A goal judged on the old history is meaningless; a /loop keeps running.
+		m = m.clearGoal()
 		m.statusBar.contextTokens = 0
 		m.streamingText = ""
 		m.streamingHasMsg = false

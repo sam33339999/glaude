@@ -164,8 +164,15 @@ type AppModel struct {
 	// btw is the live /btw side question (nil when none); mainSnap receives
 	// the running main query's cache-safe snapshot, which /btw reuses (nil
 	// when the main loop is idle); btwTarget resolves --tier.
-	btw        *btwSession
-	btwPending string // a /btw answer to attach to the next user message
+	btw *btwSession
+	// loop / goal are the active /loop and /goal (nil when none); loopGen
+	// invalidates ticks of a stopped loop; autoRetryArmed is true while a
+	// retry for blocked loop/goal work is scheduled.
+	loop           *loopState
+	loopGen        int
+	goal           *goalState
+	autoRetryArmed bool
+	btwPending     string // a /btw answer to attach to the next user message
 
 	// ! bash mode: outputs waiting for the next user message, the running
 	// command's cancel, and a generation that drops results outliving /clear.

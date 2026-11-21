@@ -42,6 +42,8 @@ type StatusBar struct {
 	// memBytes is the process memory currently held from the OS (sampled
 	// about once a second); 0 hides it.
 	memBytes uint64
+	// auto shows the active /loop and /goal ("" when neither).
+	auto string
 }
 
 // addUsage records one request's usage reported by the API.
@@ -130,6 +132,9 @@ func (s StatusBar) View(width int, theme Theme) string {
 	}
 	if s.coordinator {
 		left = append(left, accentStyle(theme).Render("Coordinator"))
+	}
+	if s.auto != "" {
+		left = append(left, accentStyle(theme).Render(s.auto))
 	}
 	model := primaryStyle(theme).Render(modelStr)
 	leftFixed := strings.Join(append(left, model), sep)
