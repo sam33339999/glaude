@@ -241,10 +241,7 @@ func BuildContainer(opts ContainerOptions) (*AppContainer, error) {
 	// EV-01: MCP server notifications wake the agent via the message queue
 	// (event-driven, zero polling). The drain point displays the event and
 	// starts a query so the agent can act on it.
-	pool.SetNotificationHandler(func(server, method string, params json.RawMessage) {
-		event := fmt.Sprintf("[MCP event from %s] %s\n%s", server, method, string(params))
-		mq.Enqueue(msgqueue.NewCommand(event, msgqueue.ModeExternalPrompt, msgqueue.PriorityNext))
-	})
+	pool.SetNotificationHandler(mcpWakeHandler(mq))
 
 	// Register memory stop hooks (extract + auto dream).
 	memoryStore := buildMemoryStore(settings, opts.WorkingDir)
@@ -399,10 +396,7 @@ func BuildContainerWithClient(opts ContainerOptions, client api.Client) (*AppCon
 	qgTest := msgqueue.NewQueryGuard()
 
 	// EV-01: MCP notifications → queue (test path mirrors production wiring).
-	pool.SetNotificationHandler(func(server, method string, params json.RawMessage) {
-		event := fmt.Sprintf("[MCP event from %s] %s\n%s", server, method, string(params))
-		mqTest.Enqueue(msgqueue.NewCommand(event, msgqueue.ModeExternalPrompt, msgqueue.PriorityNext))
-	})
+	pool.SetNotificationHandler(mcpWakeHandler(mqTest))
 
 	// ── Phase 8: Engine construction ─────────────────────────────────────────
 	router := wireTiers(opts, client)
@@ -1222,4 +1216,17 @@ func applyPermissionFlags(container *AppContainer, f *rootFlags) {
 		prev.ToolPermissionContext = ctx
 		return prev
 	})
+}
+
+// mcpWakeHandler turns MCP server notifications into agent wake-ups (EV-01).
+// Protocol housekeeping (logging, progress, list_changed…) is dropped so it
+// never starts a turn; see mcp.WakesAgent.
+func mcpWakeHandler(mq *msgqueue.MessageQueue) mcp.ServerNotificationHandler {
+	return func(server, method string, params json.RawMessage) {
+		if !mcp.WakesAgent(method) {
+			return
+		}
+		event := fmt.Sprintf("[MCP event from %s] %s\n%s", server, method, string(params))
+		mq.Enqueue(msgqueue.NewCommand(event, msgqueue.ModeExternalPrompt, msgqueue.PriorityNext))
+	}
 }
