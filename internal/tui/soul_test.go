@@ -38,3 +38,16 @@ func TestSoulSurvivesHistoryReplacement(t *testing.T) {
 		t.Error("cache breakpoint must stay on the last system part")
 	}
 }
+
+func TestAppendSystemPromptIsLast(t *testing.T) {
+	m := newTestModel()
+	m.appState.SetState(func(s state.AppState) state.AppState {
+		s.WorkingDir = t.TempDir()
+		s.AppendSystemPrompt = "Always cite file paths."
+		return s
+	})
+	parts := buildMainSystemPrompt(&m).Parts
+	if len(parts) == 0 || parts[len(parts)-1].Text != "Always cite file paths." || parts[len(parts)-1].CacheControl != "ephemeral" {
+		t.Fatalf("--append-system-prompt not last (with the cache breakpoint): %+v", parts)
+	}
+}

@@ -152,7 +152,7 @@ func TestConnectConfiguredMCPServers_NoConfig(t *testing.T) {
 	RegisterBuiltinTools(reg, nil)
 	pool := mcp.NewPool()
 
-	err := connectConfiguredMCPServers(context.Background(), reg, pool, nil, home, work)
+	err := connectConfiguredMCPServers(context.Background(), reg, pool, nil, home, work, nil)
 	if err != nil {
 		t.Fatalf("expected no error with no configured servers, got: %v", err)
 	}
@@ -174,7 +174,7 @@ func TestConnectConfiguredMCPServers_ConnectsAndRegisters(t *testing.T) {
 	reg := tools.NewRegistry()
 	RegisterBuiltinTools(reg, pool)
 
-	err := connectConfiguredMCPServers(context.Background(), reg, pool, nil, home, work)
+	err := connectConfiguredMCPServers(context.Background(), reg, pool, nil, home, work, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -221,7 +221,7 @@ func TestConnectConfiguredMCPServers_ConnectFailureNonFatal(t *testing.T) {
 	reg := tools.NewRegistry()
 	RegisterBuiltinTools(reg, pool)
 
-	err := connectConfiguredMCPServers(context.Background(), reg, pool, nil, home, work)
+	err := connectConfiguredMCPServers(context.Background(), reg, pool, nil, home, work, nil)
 	if err == nil {
 		t.Fatal("expected joined error for failed connection")
 	}
@@ -247,7 +247,7 @@ func TestConnectConfiguredMCPServers_ProjectApprovalGate(t *testing.T) {
 	pool := mcp.NewPool()
 	reg := tools.NewRegistry()
 	RegisterBuiltinTools(reg, pool)
-	if err := connectConfiguredMCPServers(context.Background(), reg, pool, nil, home, work); err != nil {
+	if err := connectConfiguredMCPServers(context.Background(), reg, pool, nil, home, work, nil); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(pool.GetAll()) != 0 {
@@ -261,7 +261,7 @@ func TestConnectConfiguredMCPServers_ProjectApprovalGate(t *testing.T) {
 	}}
 	reg2 := tools.NewRegistry()
 	RegisterBuiltinTools(reg2, pool)
-	if err := connectConfiguredMCPServers(context.Background(), reg2, pool, settings, home, work); err != nil {
+	if err := connectConfiguredMCPServers(context.Background(), reg2, pool, settings, home, work, nil); err != nil {
 		t.Fatalf("unexpected error with approval: %v", err)
 	}
 	if len(pool.GetConnected()) != 1 {
@@ -493,7 +493,7 @@ func TestConnectConfiguredMCPServers_SlowHandshakeNonFatal(t *testing.T) {
 	RegisterBuiltinTools(reg, pool)
 
 	start := time.Now()
-	err := connectConfiguredMCPServers(context.Background(), reg, pool, nil, home, work)
+	err := connectConfiguredMCPServers(context.Background(), reg, pool, nil, home, work, nil)
 	elapsed := time.Since(start)
 	if err == nil || !strings.Contains(err.Error(), "a-slow") {
 		t.Fatalf("expected joined error naming a-slow, got: %v", err)

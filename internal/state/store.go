@@ -147,6 +147,10 @@ type AppState struct {
 	ToolPermissionContext types.ToolPermissionContext `json:"toolPermissionContext"`
 
 	// Session
+	// AppendSystemPrompt is --append-system-prompt, added after the main
+	// system prompt on every request.
+	AppendSystemPrompt string `json:"appendSystemPrompt,omitempty"`
+
 	SessionId  types.SessionId `json:"sessionId"`
 	WorkingDir string          `json:"workingDir"`
 	GitBranch  string          `json:"gitBranch,omitempty"`

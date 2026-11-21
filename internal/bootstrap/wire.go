@@ -65,6 +65,13 @@ type ContainerOptions struct {
 	// ProviderClientFactory builds clients for config.toml providers; nil
 	// uses api.NewClient. Tests inject fakes here.
 	ProviderClientFactory providerClientFactory
+	// MCPConfigs are servers given with --mcp-config. They need no approval
+	// (the user named them on the command line) and win over same-named
+	// configured servers.
+	MCPConfigs []config.MCPServerEntry
+	// AppendSystemPrompt is --append-system-prompt: added to the end of the
+	// main system prompt (TUI and -p).
+	AppendSystemPrompt string
 }
 
 // AppContainer holds all wired application dependencies.
@@ -168,7 +175,7 @@ func BuildContainer(opts ContainerOptions) (*AppContainer, error) {
 	pool := mcp.NewPool()
 	reg := tools.NewRegistry()
 	RegisterBuiltinTools(reg, pool)
-	if err := connectConfiguredMCPServers(context.Background(), reg, pool, settings, opts.HomeDir, opts.WorkingDir); err != nil && opts.Debug {
+	if err := connectConfiguredMCPServers(context.Background(), reg, pool, settings, opts.HomeDir, opts.WorkingDir, opts.MCPConfigs); err != nil && opts.Debug {
 		fmt.Fprintf(os.Stderr, "mcp: startup: %v\n", err)
 	}
 
@@ -181,6 +188,7 @@ func BuildContainer(opts ContainerOptions) (*AppContainer, error) {
 	// ── Phase 6: App state store (needed for permission context) ─────────────
 	model := resolveModel(settings, opts.ModelOverride)
 	appState := buildAppState(settings, opts, model)
+	appState.AppendSystemPrompt = opts.AppendSystemPrompt
 	store := state.NewAppStateStore(appState)
 	// BF-07: TodoWrite needs the live store; registered here (not in
 	// RegisterBuiltinTools) because the store is built after tool registration.
@@ -328,7 +336,7 @@ func BuildContainerWithClient(opts ContainerOptions, client api.Client) (*AppCon
 	pool := mcp.NewPool()
 	reg := tools.NewRegistry()
 	RegisterBuiltinTools(reg, pool)
-	if err := connectConfiguredMCPServers(context.Background(), reg, pool, settings, opts.HomeDir, opts.WorkingDir); err != nil && opts.Debug {
+	if err := connectConfiguredMCPServers(context.Background(), reg, pool, settings, opts.HomeDir, opts.WorkingDir, opts.MCPConfigs); err != nil && opts.Debug {
 		fmt.Fprintf(os.Stderr, "mcp: startup: %v\n", err)
 	}
 
@@ -340,6 +348,7 @@ func BuildContainerWithClient(opts ContainerOptions, client api.Client) (*AppCon
 	// ── Phase 6: App state store (needed for permission context) ─────────────
 	model := resolveModel(settings, opts.ModelOverride)
 	appState := buildAppState(settings, opts, model)
+	appState.AppendSystemPrompt = opts.AppendSystemPrompt
 	store := state.NewAppStateStore(appState)
 	// BF-07: TodoWrite needs the live store; registered here (not in
 	// RegisterBuiltinTools) because the store is built after tool registration.

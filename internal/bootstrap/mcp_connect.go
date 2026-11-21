@@ -40,10 +40,28 @@ func connectConfiguredMCPServers(
 	pool *mcp.Pool,
 	settings *config.LayeredSettings,
 	homeDir, workingDir string,
+	flagServers []config.MCPServerEntry,
 ) error {
 	store := config.NewMCPStore(homeDir, workingDir)
 	var errs []error
+	// --mcp-config servers first: named explicitly, so no approval, and they
+	// shadow configured servers of the same name.
+	fromFlag := map[string]bool{}
+	for _, e := range flagServers {
+		fromFlag[e.Name] = true
+		cfg, err := mcpServerConfigFromEntry(e)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("mcp: --mcp-config server %q: %w", e.Name, err))
+			continue
+		}
+		if err := connectWithWatchdog(ctx, pool, e.Name, cfg); err != nil {
+			errs = append(errs, fmt.Errorf("mcp: connect %q: %w", e.Name, err))
+		}
+	}
 	for _, e := range store.ListMCPServers() {
+		if fromFlag[e.Name] {
+			continue
+		}
 		if _, scope, ok := store.GetMCPServer(e.Name); ok && scope == config.MCPScopeProject &&
 			!projectMCPApproved(settings, e.Name) {
 			continue

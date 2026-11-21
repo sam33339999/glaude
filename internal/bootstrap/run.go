@@ -72,6 +72,9 @@ func headlessRun(
 	if f.systemPrompt != "" {
 		params.SystemPrompt.Parts = append(params.SystemPrompt.Parts, engine.SystemPromptPart{Text: f.systemPrompt})
 	}
+	if f.appendSystemPrompt != "" {
+		params.SystemPrompt.Parts = append(params.SystemPrompt.Parts, engine.SystemPromptPart{Text: f.appendSystemPrompt})
+	}
 
 	// Append the user prompt as the first message.
 	params.Messages = append(params.Messages, types.Message{
