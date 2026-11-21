@@ -182,6 +182,20 @@ func (l *Loader) Load() (*LayeredSettings, error) {
 		*t.ptr = s
 	}
 
+	// The local layer also reads <cwd>/.glaude/settings.local.json — the path
+	// CLAUDE.md, MCP approval and the plugin store use (the upstream
+	// convention). It wins over the legacy .glaude.local/settings.json, which
+	// keeps working.
+	if data, err := os.ReadFile(LocalSettingsPath(l.projectDir)); err == nil {
+		s := &SettingsJson{}
+		if err := json.Unmarshal(data, s); err != nil {
+			return nil, err
+		}
+		ls.Local = mergeSettings(ls.Local, s)
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
+	}
+
 	// Step 1: merge user-controllable layers in ascending priority.
 	base := mergeSettings(ls.User, ls.Project, ls.Local)
 	// Step 2: apply environment-variable overrides (higher than any file).
@@ -531,4 +545,11 @@ func MergeACPAgentConfig(base, over ACPAgentConfig) ACPAgentConfig {
 		base.Env = env
 	}
 	return base
+}
+
+// LocalSettingsPath is the project's untracked settings file,
+// <cwd>/.glaude/settings.local.json. The legacy <cwd>/.glaude.local/settings.json
+// is still read, at lower priority.
+func LocalSettingsPath(projectDir string) string {
+	return filepath.Join(projectDir, ClaudeDir, "settings.local.json")
 }

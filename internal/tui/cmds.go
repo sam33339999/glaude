@@ -35,6 +35,9 @@ func buildMainSystemPrompt(m *AppModel) engine.SystemPrompt {
 			Text: coordinator.GetCoordinatorSystemPrompt(false),
 		})
 	}
+	if extra := m.appState.GetState().AppendSystemPrompt; extra != "" {
+		sysPrompt.Parts = append(sysPrompt.Parts, engine.SystemPromptPart{Text: extra})
+	}
 	if len(sysPrompt.Parts) > 0 {
 		sysPrompt.Parts[len(sysPrompt.Parts)-1].CacheControl = "ephemeral"
 	}

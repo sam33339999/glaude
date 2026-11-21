@@ -190,7 +190,7 @@ func (b *setupBackend) Overrides() []string {
 		s    *config.SettingsJson
 	}{
 		{"project settings (.glaude/settings.json)", b.settings.Project},
-		{"local settings (.glaude.local/settings.json)", b.settings.Local},
+		{"local settings (.glaude/settings.local.json or .glaude.local/settings.json)", b.settings.Local},
 		{"managed settings (managed-settings.json)", b.settings.Policy},
 	}
 	for _, l := range layers {

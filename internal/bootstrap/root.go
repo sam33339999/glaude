@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
 
+	"github.com/tunsuy/glaude/internal/config"
 	"github.com/tunsuy/glaude/internal/tui"
 )
 
@@ -184,6 +185,15 @@ func runInteractiveOrHeadless(cmd *cobra.Command, f *rootFlags, args []string) e
 		Verbose:       f.verbose,
 		Debug:         f.debug,
 		DebugFile:     f.debugFile,
+
+		AppendSystemPrompt: f.appendSystemPrompt,
+	}
+	for _, arg := range f.mcpConfig {
+		entries, err := config.ParseMCPConfigArg(arg)
+		if err != nil {
+			return err
+		}
+		opts.MCPConfigs = append(opts.MCPConfigs, entries...)
 	}
 
 	if f.print {

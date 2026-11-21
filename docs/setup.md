@@ -48,7 +48,7 @@
 
 `/setup` 只寫全域設定。以下情況會在確認頁和完成頁警告，因為新的全域設定實際上不會被用到：
 
-- 專案層 `.glaude/settings.json` 或本地層 `.glaude.local/settings.json` 設了 `provider` / `baseUrl` / `model` / `apiKey`。
+- 專案層 `.glaude/settings.json` 或本地層 `.glaude/settings.local.json`（舊位置 `.glaude.local/settings.json` 仍有效）設了 `provider` / `baseUrl` / `model` / `apiKey`。
 - `managed-settings.json` 鎖定了這些欄位。
 - 有設定以下環境變數：`CLAUDE_PROVIDER`、`API_PROVIDER`、`ANTHROPIC_API_KEY`、`OPENAI_API_KEY`、`ANTHROPIC_BASE_URL`、`OPENAI_BASE_URL`、`OPENAI_API_BASE`、`ANTHROPIC_MODEL`、`CLAUDE_MODEL`、`OPENAI_MODEL`。
 - 已經用 OAuth 登入：主腦會優先用 OAuth，API key 只在未登入時使用。
