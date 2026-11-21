@@ -37,7 +37,9 @@ func (t *getAgentStatusTool) Name() string { return "GetAgentStatus" }
 func (t *getAgentStatusTool) Description(_ tools.Input, _ tools.PermissionContext) string {
 	return `Returns the current status and result of a sub-agent.
 
-Use this to poll background agents spawned with background: true.
+Use this only when the user asks how a background agent is doing. Do NOT poll
+it in a loop to wait for completion: end your turn instead — a
+<task-notification> wakes you automatically when the agent finishes.
 The agent_id field accepts the agent ID (returned by the Agent tool) or the
 human-readable agent_name you assigned — names are resolved automatically.
 Status values: running, completed, failed, killed.`
