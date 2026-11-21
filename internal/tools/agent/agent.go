@@ -100,7 +100,7 @@ func (t *agentTool) InputSchema() tools.InputSchema {
 			}),
 			"background": tools.PropSchema(map[string]any{
 				"type":        "boolean",
-				"description": "If true, spawn without blocking. Use SendMessage or GetAgentStatus to check progress. Forks always run in the background.",
+				"description": "If true, spawn without blocking, then end your turn: a <task-notification> wakes you when the agent finishes (do not poll). Forks always run in the background.",
 			}),
 			"agent_name": tools.PropSchema(map[string]any{
 				"type":        "string",
@@ -218,7 +218,7 @@ func (t *agentTool) Call(input tools.Input, ctx *tools.UseContext, onProgress to
 		}
 		out := AgentOutput{
 			AgentID:  agentID,
-			Response: fmt.Sprintf("Background agent %s spawned. Use SendMessage(to=%q) to communicate, or poll via GetAgentStatus(agent_id=%q).", agentID, nameOrID(in.AgentName, agentID), agentID),
+			Response: fmt.Sprintf("Background agent %s spawned. End your turn now: a <task-notification> wakes you when it finishes (do not poll GetAgentStatus or sleep). Use SendMessage(to=%q) to give it more instructions.", agentID, nameOrID(in.AgentName, agentID)),
 		}
 		outBytes, _ := json.Marshal(out)
 		return &tools.Result{Content: string(outBytes)}, nil
