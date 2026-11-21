@@ -466,6 +466,11 @@ func (m AppModel) handleSubmit() (tea.Model, tea.Cmd) {
 	if name, args := splitSlash(text); name == "btw" {
 		return m.startBTW(args)
 	}
+	// /loop and /goal act immediately too ("/loop stop" must not wait).
+	if name, args := splitSlash(text); name == "loop" || name == "goal" {
+		mm, cmd, _ := m.handleAutoCommand(name, args)
+		return mm, cmd
+	}
 
 	// ! runs a shell command directly; it never waits for the main loop.
 	if cmd, ok := parseBang(text); ok {
