@@ -251,7 +251,7 @@ func TestBuildForkQuery_ClientIsMainTarget(t *testing.T) {
 	r := newTestRouter(t, tierTestConfig)
 	req := coordinator.SpawnRequest{SubagentType: "fork", Prompt: "p", Model: "lite", MaxTurns: coordinator.DefaultMaxTurns}
 	main := engine.MainTarget{Client: mainTestClient, ProviderID: "main", Model: "claude-parent"}
-	params, _, err := buildSubAgentQuery(req, tools.NewRegistry(), forkTestProfiles(), "claude-parent", "", nil, &sync.Map{}, "a-f1", r, main)
+	params, _, err := buildSubAgentQuery(req, tools.NewRegistry(), forkTestProfiles(), "claude-parent", "", nil, &sync.Map{}, "a-f1", r, main, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -337,12 +337,12 @@ func TestBuildForkQuery_UsesSnapshotClient(t *testing.T) {
 	main := engine.MainTarget{Client: cur, ProviderID: "main", Model: "cur-model"}
 	req := coordinator.SpawnRequest{SubagentType: "fork", Prompt: "p", MaxTurns: coordinator.DefaultMaxTurns,
 		CacheParams: &engine.CacheSafeParams{Model: "m1", Client: x}}
-	params, _, err := buildSubAgentQuery(req, tools.NewRegistry(), forkTestProfiles(), "cur-model", "", nil, &sync.Map{}, "a-f2", nil, main)
+	params, _, err := buildSubAgentQuery(req, tools.NewRegistry(), forkTestProfiles(), "cur-model", "", nil, &sync.Map{}, "a-f2", nil, main, "")
 	if err != nil || params.Client != x || params.Model != "m1" {
 		t.Errorf("fork with snapshot = client %s model %q err %v", clientID(params.Client), params.Model, err)
 	}
 	req.CacheParams = nil
-	params, _, _ = buildSubAgentQuery(req, tools.NewRegistry(), forkTestProfiles(), "cur-model", "", nil, &sync.Map{}, "a-f3", nil, main)
+	params, _, _ = buildSubAgentQuery(req, tools.NewRegistry(), forkTestProfiles(), "cur-model", "", nil, &sync.Map{}, "a-f3", nil, main, "")
 	if params.Client != cur || params.Model != "cur-model" {
 		t.Errorf("fork without snapshot = client %s model %q", clientID(params.Client), params.Model)
 	}
@@ -415,12 +415,12 @@ func TestBuildForkQuery_CarriesSnapshotLimits(t *testing.T) {
 	req := coordinator.SpawnRequest{SubagentType: "fork", Prompt: "p", MaxTurns: coordinator.DefaultMaxTurns,
 		CacheParams: &engine.CacheSafeParams{Model: "m1", Client: x, ContextWindow: 131072, MaxTokens: 8192}}
 	main := engine.MainTarget{Client: &providerClient{id: "cur"}, Model: "cur", ContextWindow: 1, MaxTokens: 2}
-	p, _, _ := buildSubAgentQuery(req, tools.NewRegistry(), forkTestProfiles(), "cur", "", nil, &sync.Map{}, "a-f9", nil, main)
+	p, _, _ := buildSubAgentQuery(req, tools.NewRegistry(), forkTestProfiles(), "cur", "", nil, &sync.Map{}, "a-f9", nil, main, "")
 	if p.ContextWindow != 131072 || p.MaxOutputTokensOverride != 8192 {
 		t.Errorf("fork limits = %d/%d", p.ContextWindow, p.MaxOutputTokensOverride)
 	}
 	req.CacheParams = nil
-	p, _, _ = buildSubAgentQuery(req, tools.NewRegistry(), forkTestProfiles(), "cur", "", nil, &sync.Map{}, "a-f10", nil, main)
+	p, _, _ = buildSubAgentQuery(req, tools.NewRegistry(), forkTestProfiles(), "cur", "", nil, &sync.Map{}, "a-f10", nil, main, "")
 	if p.ContextWindow != 1 || p.MaxOutputTokensOverride != 2 {
 		t.Errorf("fork limits without snapshot = %d/%d, want main's", p.ContextWindow, p.MaxOutputTokensOverride)
 	}

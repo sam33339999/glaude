@@ -9,6 +9,7 @@ import (
 	"github.com/tunsuy/glaude/internal/coordinator"
 	"github.com/tunsuy/glaude/internal/engine"
 	"github.com/tunsuy/glaude/internal/memdir"
+	"github.com/tunsuy/glaude/internal/soul"
 	"github.com/tunsuy/glaude/internal/tools"
 	"github.com/tunsuy/glaude/internal/transcript"
 	"github.com/tunsuy/glaude/pkg/types"
@@ -21,6 +22,11 @@ import (
 // so its prefix matches the main loop's cache.
 func buildMainSystemPrompt(m *AppModel) engine.SystemPrompt {
 	var sysPrompt engine.SystemPrompt
+	// The soul is re-read on every request and lives in the system prompt, so
+	// auto-compaction (which only rewrites messages) can never drop it.
+	if s := soul.PromptForCwd(m.appState.GetState().WorkingDir); s != "" {
+		sysPrompt.Parts = append(sysPrompt.Parts, engine.SystemPromptPart{Text: s})
+	}
 	if m.memdirPrompt != "" {
 		sysPrompt.Parts = append(sysPrompt.Parts, engine.SystemPromptPart{Text: m.memdirPrompt})
 	}
