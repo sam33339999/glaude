@@ -26,6 +26,7 @@ import (
 	"github.com/tunsuy/glaude/internal/msgqueue"
 	"github.com/tunsuy/glaude/internal/oauth"
 	"github.com/tunsuy/glaude/internal/permissions"
+	"github.com/tunsuy/glaude/internal/soul"
 	"github.com/tunsuy/glaude/internal/state"
 	"github.com/tunsuy/glaude/internal/tools"
 	cmtool "github.com/tunsuy/glaude/internal/tools/codemode"
@@ -584,7 +585,7 @@ func buildRunAgentFn(
 			// are not known to exist: treat them like the openai rules (inherit).
 			provider = string(api.ProviderOpenAI)
 		}
-		params, seed, err := buildSubAgentQuery(req, reg, agentProfiles, parentModel, provider, inboxCh, &runStates, agentID, router, main)
+		params, seed, err := buildSubAgentQuery(req, reg, agentProfiles, parentModel, provider, inboxCh, &runStates, agentID, router, main, soul.PromptForCwd(st.WorkingDir))
 		if err != nil {
 			return "", fmt.Errorf("sub-agent dispatch: %w", err)
 		}
@@ -647,6 +648,7 @@ func buildSubAgentQuery(
 	agentID coordinator.AgentID,
 	router *tierRouter,
 	main engine.MainTarget,
+	soulPrompt string,
 ) (engine.QueryParams, []types.Message, error) {
 	// Resume: continue the retained conversation with identical prompt/tools/
 	// model (cache continuity). The new trigger message arrives via the inbox
@@ -686,6 +688,11 @@ func buildSubAgentQuery(
 		promptText = "You are a worker agent. Complete the task described below. Be concise and thorough."
 	}
 
+	// The user's soul applies to sub-agents too (forks already inherit it via
+	// the parent's system prompt snapshot).
+	if soulPrompt != "" {
+		promptText = soulPrompt + "\n\n" + promptText
+	}
 	systemPrompt := engine.SystemPrompt{
 		Parts: []engine.SystemPromptPart{
 			{Text: promptText},

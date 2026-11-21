@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/tunsuy/glaude/internal/engine"
+	"github.com/tunsuy/glaude/internal/soul"
 	"github.com/tunsuy/glaude/internal/tools"
 	"github.com/tunsuy/glaude/pkg/types"
 )
@@ -65,12 +66,11 @@ func headlessRun(
 		FallbackModel:  f.fallbackModel,
 	}
 
+	if s := soul.PromptForCwd(useCtx.WorkingDir); s != "" {
+		params.SystemPrompt.Parts = append(params.SystemPrompt.Parts, engine.SystemPromptPart{Text: s})
+	}
 	if f.systemPrompt != "" {
-		params.SystemPrompt = engine.SystemPrompt{
-			Parts: []engine.SystemPromptPart{
-				{Text: f.systemPrompt},
-			},
-		}
+		params.SystemPrompt.Parts = append(params.SystemPrompt.Parts, engine.SystemPromptPart{Text: f.systemPrompt})
 	}
 
 	// Append the user prompt as the first message.
