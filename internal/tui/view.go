@@ -142,9 +142,8 @@ func (m AppModel) View() tea.View {
 	// behind a dialog or todo panel that appeared since.
 	vp := m.viewport
 	vp.SetHeight(l.vpHeight)
-	if m.pinnedToBottom {
-		vp.GotoBottom()
-	}
+	_, _, offset := m.viewportGeometry()
+	vp.SetYOffset(offset)
 	if vpContent := strings.TrimRight(vp.View(), "\n "); vpContent != "" {
 		sb.WriteString(vpContent)
 		sb.WriteString("\n")
