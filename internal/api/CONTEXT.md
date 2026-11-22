@@ -2,13 +2,13 @@
 package: api
 import_path: internal/api
 layer: services
-generated_at: 2026-11-22T14:16:46Z
-source_files: [accumulate.go, client.go, debug_logger.go, errors.go, factory.go, json.go, listmodels.go, openai_client.go, openai_images.go, openai_stream.go, openai_types.go, ratelimit.go, retry.go, stream.go, usage.go]
+generated_at: 2026-11-22T15:05:08Z
+source_files: [accumulate.go, client.go, debug_logger.go, errors.go, factory.go, json.go, listmodels.go, openai_client.go, openai_images.go, openai_stream.go, openai_tool_schema.go, openai_types.go, ratelimit.go, retry.go, stream.go, usage.go]
 ---
 
 # internal/api
 
-> Layer: **Services** · Files: 15 · Interfaces: 2 · Structs: 31 · Functions: 9
+> Layer: **Services** · Files: 16 · Interfaces: 2 · Structs: 31 · Functions: 9
 
 ## Interfaces
 
