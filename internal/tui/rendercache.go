@@ -37,8 +37,9 @@ type renderKey struct {
 }
 
 type cacheEntry struct {
-	key renderKey
-	out string
+	key  renderKey
+	out  string
+	refs []codeBlockRef // code block headers, lines relative to out
 }
 
 // newMessageRenderCache returns an empty cache.
@@ -89,16 +90,22 @@ func boolByte(b bool) byte {
 
 // render returns the rendered message at index i, from cache when valid.
 func (c *messageRenderCache) render(i int, msg types.Message, opts renderOptions, lookups MessageLookups) string {
+	out, _ := c.renderRefs(i, msg, opts, lookups)
+	return out
+}
+
+// renderRefs is render that also returns the message's code block headers.
+func (c *messageRenderCache) renderRefs(i int, msg types.Message, opts renderOptions, lookups MessageLookups) (string, []codeBlockRef) {
 	k := keyFor(msg, opts, lookups)
 	if i < len(c.entries) && c.entries[i].key == k {
-		return c.entries[i].out
+		return c.entries[i].out, c.entries[i].refs
 	}
-	out := renderMessageOpts(msg, opts, lookups)
+	out, refs := renderMessageRefs(msg, opts, lookups)
 	for len(c.entries) <= i {
 		c.entries = append(c.entries, cacheEntry{})
 	}
-	c.entries[i] = cacheEntry{key: k, out: out}
-	return out
+	c.entries[i] = cacheEntry{key: k, out: out, refs: refs}
+	return out, refs
 }
 
 // prune drops entries past n (the history shrank).

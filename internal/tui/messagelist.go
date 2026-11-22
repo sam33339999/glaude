@@ -242,20 +242,36 @@ func MessageListView(
 // renderMessageList renders messages, reusing cache entries for messages
 // whose rendering inputs are unchanged. cache may be nil.
 func renderMessageList(messages []types.Message, opts renderOptions, cache *messageRenderCache) string {
+	out, _ := renderMessageListRefs(messages, opts, cache)
+	return out
+}
+
+// renderMessageListRefs is renderMessageList that also reports every code
+// block header, with line indices into the returned string.
+func renderMessageListRefs(messages []types.Message, opts renderOptions, cache *messageRenderCache) (string, []codeBlockRef) {
 	lookups := buildMessageLookups(messages)
 	var sb strings.Builder
+	var refs []codeBlockRef
 	for i, msg := range messages {
+		var out string
+		var msgRefs []codeBlockRef
 		if cache != nil {
-			sb.WriteString(cache.render(i, msg, opts, lookups))
+			out, msgRefs = cache.renderRefs(i, msg, opts, lookups)
 		} else {
-			sb.WriteString(renderMessageOpts(msg, opts, lookups))
+			out, msgRefs = renderMessageRefs(msg, opts, lookups)
 		}
+		base := strings.Count(sb.String(), "\n")
+		for _, r := range msgRefs {
+			r.line += base
+			refs = append(refs, r)
+		}
+		sb.WriteString(out)
 		// Blank line between messages for visual separation.
 		if i < len(messages)-1 {
 			sb.WriteString("\n")
 		}
 	}
-	return sb.String()
+	return sb.String(), refs
 }
 
 // renderMessage dispatches to the appropriate renderer for a single message.
@@ -267,6 +283,21 @@ func renderMessage(msg types.Message, width int, darkMode bool, theme Theme, mdR
 
 // renderMessageOpts dispatches on message kind.
 func renderMessageOpts(msg types.Message, opts renderOptions, lookups MessageLookups) string {
+	out, _ := renderMessageRefs(msg, opts, lookups)
+	return out
+}
+
+// renderMessageRefs renders msg and reports its code block headers. Only
+// assistant turns carry code block headers.
+func renderMessageRefs(msg types.Message, opts renderOptions, lookups MessageLookups) (string, []codeBlockRef) {
+	if msg.Role == types.RoleAssistant && !isSystemMessage(msg) && msg.ID != btwMessageID {
+		return renderAssistantMessageRefs(msg, opts, lookups)
+	}
+	return renderMessageKind(msg, opts, lookups), nil
+}
+
+// renderMessageKind renders the non-assistant message kinds.
+func renderMessageKind(msg types.Message, opts renderOptions, lookups MessageLookups) string {
 	switch {
 	case isSystemMessage(msg), msg.ID == btwMessageID:
 		return renderSystemMessage(msg, opts)
@@ -311,12 +342,26 @@ func renderUserMessage(msg types.Message, opts renderOptions) string {
 // renderAssistantMessage renders an assistant turn, including markdown and tool
 // use blocks. Tool results are displayed inline after their corresponding tool_use.
 func renderAssistantMessage(msg types.Message, opts renderOptions, lookups MessageLookups) string {
+	out, _ := renderAssistantMessageRefs(msg, opts, lookups)
+	return out
+}
+
+// renderAssistantMessageRefs renders an assistant turn and reports its code
+// block headers (line indices relative to the returned string).
+func renderAssistantMessageRefs(msg types.Message, opts renderOptions, lookups MessageLookups) (string, []codeBlockRef) {
 	var sb strings.Builder
+	var refs []codeBlockRef
 	for _, blk := range msg.Content {
 		switch blk.Type {
 		case types.ContentTypeText:
 			if blk.Text != nil && *blk.Text != "" {
-				sb.WriteString(renderTextBlock(*blk.Text, opts, primaryStyle(opts.theme).Render(blackCircle())))
+				base := strings.Count(sb.String(), "\n")
+				out, blockRefs := renderTextBlockRefs(*blk.Text, opts, primaryStyle(opts.theme).Render(blackCircle()))
+				for _, r := range blockRefs {
+					r.line += base
+					refs = append(refs, r)
+				}
+				sb.WriteString(out)
 			}
 		case types.ContentTypeThinking:
 			if blk.Thinking != nil && *blk.Thinking != "" {
@@ -338,15 +383,33 @@ func renderAssistantMessage(msg types.Message, opts renderOptions, lookups Messa
 	if sb.Len() > 0 && !strings.HasSuffix(sb.String(), "\n") {
 		sb.WriteString("\n")
 	}
-	return sb.String()
+	return sb.String(), refs
 }
 
 // renderTextBlock renders markdown text after a coloured bullet, indenting
 // continuation lines under the first.
 func renderTextBlock(text string, opts renderOptions, bullet string) string {
+	out, _ := renderTextBlockWith(text, opts, bullet, false)
+	return out
+}
+
+// renderTextBlockRefs is renderTextBlock that also inserts a "[copy]" header
+// above each code block and reports where those headers landed (line indices
+// relative to the returned string).
+func renderTextBlockRefs(text string, opts renderOptions, bullet string) (string, []codeBlockRef) {
+	return renderTextBlockWith(text, opts, bullet, true)
+}
+
+func renderTextBlockWith(text string, opts renderOptions, bullet string, headers bool) (string, []codeBlockRef) {
 	var sb strings.Builder
 	sb.WriteString(bullet + " ")
 	rendered := strings.TrimSpace(renderMarkdown(text, opts.width-4, opts.theme, opts.md))
+	hw := codeHeaderWidth(opts)
+	lines := strings.Split(rendered, "\n")
+	var headerAt map[int]codeBlock
+	if headers {
+		lines, headerAt = insertCodeHeaders(lines, extractCodeBlocks(text), hw, opts.theme)
+	}
 	// glamour only breaks lines at spaces, so a long run of CJK text (no
 	// spaces) overflows and the viewport clips it. Hard-wrap any line that is
 	// still wider than the text column.
@@ -354,9 +417,17 @@ func renderTextBlock(text string, opts renderOptions, bullet string) string {
 	if textWidth < 10 {
 		textWidth = 10
 	}
+	var refs []codeBlockRef
+	outLine := 0
 	first := true
-	for _, line := range strings.Split(rendered, "\n") {
-		if displayWidth(line) > textWidth {
+	for idx, line := range lines {
+		if blk, ok := headerAt[idx]; ok {
+			_, from, to := codeHeader(blk.lang, hw, opts.theme)
+			refs = append(refs, codeBlockRef{
+				line: outLine, colStart: 2 + from, colEnd: 2 + to,
+				code: strings.TrimRight(blk.code, "\n"),
+			})
+		} else if displayWidth(line) > textWidth {
 			line = xansi.Wrap(line, textWidth, "")
 		}
 		for _, l := range strings.Split(line, "\n") {
@@ -366,10 +437,11 @@ func renderTextBlock(text string, opts renderOptions, bullet string) string {
 			} else {
 				sb.WriteString("\n  " + l)
 			}
+			outLine++
 		}
 	}
 	sb.WriteString("\n")
-	return sb.String()
+	return sb.String(), refs
 }
 
 // renderSystemMessage renders a TUI-local notice. Errors get a red ✗ marker;
