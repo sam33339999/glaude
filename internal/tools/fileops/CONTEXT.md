@@ -2,7 +2,7 @@
 package: fileops
 import_path: internal/tools/fileops
 layer: tools
-generated_at: 2026-11-22T08:07:32Z
+generated_at: 2026-11-22T14:16:46Z
 source_files: [dangerous.go, doc.go, fileedit.go, fileread.go, filewrite.go, glob.go, grep.go, helpers.go, notebookedit.go, write_atomic.go]
 ---
 

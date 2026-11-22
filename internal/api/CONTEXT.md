@@ -2,7 +2,7 @@
 package: api
 import_path: internal/api
 layer: services
-generated_at: 2026-11-22T08:07:32Z
+generated_at: 2026-11-22T14:16:46Z
 source_files: [accumulate.go, client.go, debug_logger.go, errors.go, factory.go, json.go, listmodels.go, openai_client.go, openai_images.go, openai_stream.go, openai_types.go, ratelimit.go, retry.go, stream.go, usage.go]
 ---
 
@@ -130,8 +130,8 @@ type StreamReader interface {
 **Exported type references (files that use types from this package):**
 - `APIError` → `internal/engine/engine_test.go` (test), `internal/engine/query.go`, `internal/engine/retry_wiring_test.go` (test), `internal/engine/tiers_test.go` (test), `internal/engine/tool_images_test.go` (test)
 - `Accumulator` → `internal/engine/query.go`
-- `Client` → `internal/bootstrap/modelswitch.go`, `internal/bootstrap/setup.go`, `internal/bootstrap/tiers.go`, `internal/bootstrap/tiers_test.go` (test), `internal/bootstrap/wire.go` + 8 more
-- `ClientConfig` → `internal/bootstrap/setup.go`, `internal/bootstrap/tiers.go`, `internal/bootstrap/wire.go`
+- `Client` → `internal/bootstrap/modelswitch.go`, `internal/bootstrap/setup.go`, `internal/bootstrap/setup_test.go` (test), `internal/bootstrap/tiers.go`, `internal/bootstrap/tiers_test.go` (test) + 9 more
+- `ClientConfig` → `internal/bootstrap/setup.go`, `internal/bootstrap/setup_test.go` (test), `internal/bootstrap/tiers.go`, `internal/bootstrap/wire.go`
 - `ContentBlock` → `internal/bootstrap/acp_integration_test.go` (test), `internal/compact/auto_test.go` (test), `internal/engine/engine_test.go` (test), `internal/engine/query.go`, `internal/engine/thinking_display_test.go` (test) + 2 more
 - `ContentBlockDeltaData` → `internal/bootstrap/acp_integration_test.go` (test), `internal/engine/engine_test.go` (test), `internal/engine/thinking_display_test.go` (test)
 - `Delta` → `internal/bootstrap/acp_integration_test.go` (test), `internal/engine/engine_test.go` (test), `internal/engine/thinking_display_test.go` (test)

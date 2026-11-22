@@ -2,7 +2,7 @@
 package: modeltier
 import_path: internal/modeltier
 layer: unknown
-generated_at: 2026-11-22T08:07:32Z
+generated_at: 2026-11-22T14:16:46Z
 source_files: [config.go, resolve.go, store.go]
 ---
 
@@ -17,7 +17,7 @@ source_files: [config.go, resolve.go, store.go]
 - **MainSection** — 1 fields: ContextWindow
 - **ModelInfo** — 2 fields: ContextWindow, MaxTokens
 - **Provider** — 4 fields: Format, BaseURL, APIKeyEnv, Models
-- **ProviderStatus** — 5 fields: ID, Format, BaseURL, APIKeyEnv, KeyPresent
+- **ProviderStatus** — 6 fields: ID, Format, BaseURL, APIKeyEnv, KeyPresent, Models
 - **Store** — 5 fields
 - **TierEntry** — 4 fields: Provider, Model, ContextWindow, MaxTokens
 
@@ -39,16 +39,16 @@ source_files: [config.go, resolve.go, store.go]
 ## Change Impact
 
 **Exported type references (files that use types from this package):**
-- `Binding` → `internal/bootstrap/modelswitch.go`, `internal/bootstrap/tiers.go`, `internal/commands/tier.go`, `internal/commands/tier_test.go` (test)
-- `Provider` → `internal/bootstrap/tiers.go`, `internal/bootstrap/tiers_test.go` (test), `internal/commands/tier.go`, `internal/commands/tier_test.go` (test)
-- `ProviderStatus` → `internal/commands/tier.go`, `internal/commands/tier_test.go` (test)
+- `Binding` → `internal/bootstrap/modelswitch.go`, `internal/bootstrap/tiers.go`, `internal/commands/tier.go`, `internal/commands/tier_test.go` (test), `internal/tui/tierpicker.go` + 2 more
+- `Provider` → `internal/bootstrap/tiers.go`, `internal/bootstrap/tiers_test.go` (test), `internal/commands/tier.go`, `internal/commands/tier_test.go` (test), `internal/tui/tierpicker.go` + 2 more
+- `ProviderStatus` → `internal/commands/tier.go`, `internal/commands/tier_test.go` (test), `internal/tui/tierpicker.go`, `internal/tui/tierpicker_test.go` (test), `internal/tui/tiers_test.go` (test)
 - `Store` → `internal/bootstrap/tiers.go`, `internal/bootstrap/wire.go`, `internal/commands/tier.go`, `internal/commands/tier_test.go` (test)
 
 ## Dependencies
 
 **Imports:** *(none — zero-dependency)*
 
-**Imported by:** `internal/bootstrap`, `internal/commands`
+**Imported by:** `internal/bootstrap`, `internal/commands`, `internal/tui`
 
 <!-- AUTO-GENERATED ABOVE — DO NOT EDIT -->
 <!-- MANUAL NOTES BELOW — preserved across regeneration -->

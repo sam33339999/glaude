@@ -2,13 +2,13 @@
 package: clipboard
 import_path: internal/clipboard
 layer: unknown
-generated_at: 2026-11-22T08:07:32Z
-source_files: [clipboard.go, darwin.go, image.go, linux.go]
+generated_at: 2026-11-22T14:16:46Z
+source_files: [clipboard.go, darwin.go, image.go, linux.go, write.go]
 ---
 
 # internal/clipboard
 
-> Layer: **unknown** · Files: 4 · Interfaces: 0 · Structs: 2 · Functions: 2
+> Layer: **unknown** · Files: 5 · Interfaces: 0 · Structs: 2 · Functions: 2
 
 ## Structs
 
@@ -17,6 +17,7 @@ source_files: [clipboard.go, darwin.go, image.go, linux.go]
 
 ## Function Types
 
+- `InputRunner` — `func(ctx context.Context, stdin string, name string, args ...string) error`
 - `Runner` — `func(ctx context.Context, name string, args ...string) ([]byte, error)`
 
 ## Functions

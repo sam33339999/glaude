@@ -2,13 +2,13 @@
 package: commands
 import_path: internal/commands
 layer: cli
-generated_at: 2026-11-22T08:07:32Z
+generated_at: 2026-11-22T14:16:46Z
 source_files: [builtins.go, external.go, goal.go, loop.go, mcp.go, modelswitch.go, registry.go, resume.go, setup.go, soul.go, terminal_setup.go, tier.go]
 ---
 
 # internal/commands
 
-> Layer: **CLI** · Files: 12 · Interfaces: 4 · Structs: 15 · Functions: 13
+> Layer: **CLI** · Files: 12 · Interfaces: 5 · Structs: 15 · Functions: 13
 
 ## Interfaces
 
@@ -45,7 +45,7 @@ type SetupBackend interface {
 }
 ```
 
-### TierManager (6 methods)
+### TierManager (7 methods)
 > TierManager is the tier table view /tier needs. *modeltier.Store
 
 ```go
@@ -53,9 +53,19 @@ type TierManager interface {
     List() []modeltier.Binding
     Providers() []modeltier.ProviderStatus
     Bind(tier string, providerID string, modelID string) error
+    BindWithLimits(tier string, providerID string, modelID string, contextWindow int) error
     Unbind(tier string) error
     MainContextWindow() int
     Warnings() []string
+}
+```
+
+### TierModelLister (1 methods)
+> TierModelLister is optionally implemented by the TierManager handed to the
+
+```go
+type TierModelLister interface {
+    ListProviderModels(ctx context.Context, providerID string) ([]SetupModel, error)
 }
 ```
 
@@ -123,6 +133,7 @@ type TierManager interface {
 **Test Mocks (must add new methods when interfaces change):**
 - `stubRegistry` in `internal/permissions/checker_test.go`
 - `fakeSetupBackend` in `internal/tui/setup_dialog_test.go`
+- `fakeTierManager` in `internal/tui/tierpicker_test.go`
 
 **Exported type references (files that use types from this package):**
 - `Command` → `internal/tui/tui_test.go` (test), `internal/tui/update.go`
@@ -133,15 +144,16 @@ type TierManager interface {
 - `ModelOption` → `internal/bootstrap/modelswitch.go`, `internal/bootstrap/modelswitch_test.go` (test), `internal/tui/model.go`, `internal/tui/modelpicker.go`, `internal/tui/modelpicker_test.go` (test)
 - `ModelSwitcher` → `internal/bootstrap/modelswitch.go`, `internal/bootstrap/wire.go`, `internal/tui/init.go`, `internal/tui/model.go`, `internal/tui/modelpicker_test.go` (test)
 - `Registry` → `internal/bootstrap/acp.go`, `internal/tui/completion.go`, `internal/tui/init.go`, `internal/tui/model.go`
-- `Result` → `internal/tui/autorun_test.go` (test), `internal/tui/bashmode_test.go` (test), `internal/tui/btw_send_test.go` (test), `internal/tui/btw_test.go` (test), `internal/tui/mcp_resume_test.go` (test) + 6 more
+- `Result` → `internal/tui/autorun_test.go` (test), `internal/tui/bashmode_test.go` (test), `internal/tui/btw_send_test.go` (test), `internal/tui/btw_test.go` (test), `internal/tui/mcp_resume_test.go` (test) + 7 more
 - `SessionSummary` → `internal/tui/mcp_resume_test.go` (test), `internal/tui/resumepicker.go`
 - `SetupBackend` → `internal/bootstrap/setup.go`, `internal/bootstrap/wire.go`, `internal/tui/init.go`, `internal/tui/model.go`, `internal/tui/setup_dialog.go` + 1 more
 - `SetupDefaults` → `internal/bootstrap/setup.go`, `internal/tui/setup_dialog_test.go` (test), `internal/tui/setupwizard.go`, `internal/tui/setupwizard_test.go` (test)
 - `SetupInput` → `internal/bootstrap/setup.go`, `internal/bootstrap/setup_test.go` (test), `internal/tui/setup_dialog.go`, `internal/tui/setup_dialog_test.go` (test), `internal/tui/setupwizard.go`
-- `SetupModel` → `internal/bootstrap/setup.go`, `internal/tui/setup_dialog.go`, `internal/tui/setup_dialog_test.go` (test), `internal/tui/setupwizard.go`, `internal/tui/setupwizard_test.go` (test)
+- `SetupModel` → `internal/bootstrap/setup.go`, `internal/bootstrap/tiers.go`, `internal/tui/setup_dialog.go`, `internal/tui/setup_dialog_test.go` (test), `internal/tui/setupwizard.go` + 4 more
 - `SetupPlan` → `internal/bootstrap/setup.go`, `internal/bootstrap/setup_test.go` (test), `internal/tui/setup_dialog.go`, `internal/tui/setup_dialog_test.go` (test), `internal/tui/setupwizard.go`
 - `SetupReport` → `internal/bootstrap/setup.go`, `internal/tui/setup_dialog.go`, `internal/tui/setup_dialog_test.go` (test), `internal/tui/setupwizard.go`, `internal/tui/setupwizard_test.go` (test) + 1 more
-- `TierManager` → `internal/bootstrap/tiers.go`, `internal/tui/init.go`, `internal/tui/model.go`
+- `TierManager` → `internal/bootstrap/tiers.go`, `internal/tui/init.go`, `internal/tui/model.go`, `internal/tui/tier_dialog.go`, `internal/tui/tierpicker.go`
+- `TierModelLister` → `internal/bootstrap/tiers.go`, `internal/tui/tier_dialog.go`
 
 ## Dependencies
 
