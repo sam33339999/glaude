@@ -130,11 +130,12 @@ type AppModel struct {
 	clipWriter clipboardWriter
 
 	// --- Mouse selection ---
-	sel          selectionState
-	contentLines []string       // viewport content split into lines (for selection)
-	codeRefs     []codeBlockRef // code block "[copy]" headers, lines into contentLines
-	lastClickAt  time.Time
-	lastClickPos contentPos
+	sel           selectionState
+	contentLines  []string       // viewport content split into lines (for selection)
+	codeRefs      []codeBlockRef // code block "[copy]" headers, lines into contentLines
+	userTurnLines []int          // first content line of each user turn (alt+↑/↓ jumps)
+	lastClickAt   time.Time
+	lastClickPos  contentPos
 
 	// --- Style ---
 	theme    Theme

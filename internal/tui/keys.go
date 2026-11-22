@@ -222,7 +222,8 @@ func promptNewline(key tea.KeyPressMsg) bool {
 // Arrow keys follow the original Claude Code: ↑/↓ move the cursor inside a
 // multi-line input and recall prompt history at its first/last line, and
 // navigate the completion popup while it is open. The conversation scrolls
-// with PgUp/PgDn, shift+↑/↓ and the mouse wheel.
+// with PgUp/PgDn, shift+↑/↓ and the mouse wheel; alt+↑/↓ jumps between the
+// user's turns.
 func (m AppModel) handleIdleKey(key tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	m.clearPasteNotice()
 
@@ -265,6 +266,17 @@ func (m AppModel) handleIdleKey(key tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 			m.completion = completionState{}
 			return m.handleSubmit()
+		}
+	}
+
+	// alt+↑/↓ (ctrl+↑/↓ where the terminal passes it) jump between the
+	// user's turns in the conversation.
+	if key.Mod.Contains(tea.ModAlt) || key.Mod.Contains(tea.ModCtrl) {
+		switch key.Code {
+		case tea.KeyUp:
+			return m.jumpUserTurn(-1), nil
+		case tea.KeyDown:
+			return m.jumpUserTurn(1), nil
 		}
 	}
 
@@ -439,6 +451,38 @@ func (m AppModel) scrollDown(n int) AppModel {
 	if m.viewport.AtBottom() {
 		m.pinnedToBottom = true
 	}
+	return m
+}
+
+// jumpUserTurn scrolls so the previous (dir < 0) or next (dir > 0) user turn
+// starts at the top of the viewport, relative to the current top line.
+// Repeated presses keep walking. Past the last turn it returns to the
+// bottom; before the first it stays put.
+func (m AppModel) jumpUserTurn(dir int) AppModel {
+	_, _, offset := m.viewportGeometry()
+	m.viewport.SetHeight(m.viewportHeight())
+	if dir < 0 {
+		for i := len(m.userTurnLines) - 1; i >= 0; i-- {
+			if l := m.userTurnLines[i]; l < offset {
+				m.pinnedToBottom = false
+				m.viewport.SetYOffset(l)
+				return m
+			}
+		}
+		return m
+	}
+	for _, l := range m.userTurnLines {
+		if l > offset {
+			m.pinnedToBottom = false
+			m.viewport.SetYOffset(l)
+			if m.viewport.AtBottom() {
+				m.pinnedToBottom = true
+			}
+			return m
+		}
+	}
+	m.pinnedToBottom = true
+	m.viewport.GotoBottom()
 	return m
 }
 

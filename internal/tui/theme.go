@@ -27,6 +27,9 @@ type Theme struct {
 	// Tool call display
 	ToolName  color.Color
 	ToolInput color.Color
+
+	// UserBG is the background of the user's turns in the conversation.
+	UserBG color.Color
 }
 
 // DefaultDarkTheme is the built-in dark theme.
@@ -43,6 +46,7 @@ var DefaultDarkTheme = Theme{
 	CodeFG:    lipgloss.Color("252"),
 	ToolName:  lipgloss.Color("14"),
 	ToolInput: lipgloss.Color("7"),
+	UserBG:    lipgloss.Color("236"),
 }
 
 // DefaultLightTheme is the built-in light theme.
@@ -59,6 +63,7 @@ var DefaultLightTheme = Theme{
 	CodeFG:    lipgloss.Color("238"),
 	ToolName:  lipgloss.Color("6"),
 	ToolInput: lipgloss.Color("0"),
+	UserBG:    lipgloss.Color("255"),
 }
 
 // TokyoNightTheme is the built-in Tokyo Night theme.
@@ -75,6 +80,7 @@ var TokyoNightTheme = Theme{
 	CodeFG:    lipgloss.Color("189"),
 	ToolName:  lipgloss.Color("117"),
 	ToolInput: lipgloss.Color("189"),
+	UserBG:    lipgloss.Color("236"),
 }
 
 // BuiltinThemes maps theme names to Theme values.
