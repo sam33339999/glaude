@@ -142,10 +142,14 @@ func (m AppModel) View() tea.View {
 	// behind a dialog or todo panel that appeared since.
 	vp := m.viewport
 	vp.SetHeight(l.vpHeight)
-	_, _, offset := m.viewportGeometry()
+	_, rows, offset := m.viewportGeometry()
 	vp.SetYOffset(offset)
-	if vpContent := strings.TrimRight(m.highlightSelection(vp.View(), offset), "\n "); vpContent != "" {
-		sb.WriteString(vpContent)
+	if rows > 0 {
+		lines := strings.Split(vp.View(), "\n")
+		if len(lines) > rows {
+			lines = lines[:rows]
+		}
+		sb.WriteString(m.highlightSelection(strings.Join(lines, "\n"), offset))
 		sb.WriteString("\n")
 	}
 

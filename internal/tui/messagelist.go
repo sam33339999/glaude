@@ -252,6 +252,7 @@ func renderMessageListRefs(messages []types.Message, opts renderOptions, cache *
 	lookups := buildMessageLookups(messages)
 	var sb strings.Builder
 	var refs []codeBlockRef
+	base := 0 // newlines written so far: the line index of the next message
 	for i, msg := range messages {
 		var out string
 		var msgRefs []codeBlockRef
@@ -260,15 +261,16 @@ func renderMessageListRefs(messages []types.Message, opts renderOptions, cache *
 		} else {
 			out, msgRefs = renderMessageRefs(msg, opts, lookups)
 		}
-		base := strings.Count(sb.String(), "\n")
 		for _, r := range msgRefs {
 			r.line += base
 			refs = append(refs, r)
 		}
 		sb.WriteString(out)
+		base += strings.Count(out, "\n")
 		// Blank line between messages for visual separation.
 		if i < len(messages)-1 {
 			sb.WriteString("\n")
+			base++
 		}
 	}
 	return sb.String(), refs
@@ -355,7 +357,7 @@ func renderAssistantMessageRefs(msg types.Message, opts renderOptions, lookups M
 		switch blk.Type {
 		case types.ContentTypeText:
 			if blk.Text != nil && *blk.Text != "" {
-				base := strings.Count(sb.String(), "\n")
+				base := strings.Count(sb.String(), "\n") // per message, not per list: small
 				out, blockRefs := renderTextBlockRefs(*blk.Text, opts, primaryStyle(opts.theme).Render(blackCircle()))
 				for _, r := range blockRefs {
 					r.line += base

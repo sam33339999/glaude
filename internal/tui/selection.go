@@ -44,25 +44,37 @@ func (s selectionState) empty() bool {
 }
 
 // viewportGeometry returns the screen row of the message viewport's first
-// line, its height in rows, and the first visible content line. View renders
-// with the same offset so hit-testing matches what is on screen.
+// line, how many rows of it are drawn, and the first visible content line.
+// View draws exactly these rows, so hit-testing matches what is on screen:
+// trailing blank rows are not drawn (the panels below move up into them).
 func (m AppModel) viewportGeometry() (top, height, offset int) {
 	l := m.layout()
 	top = renderedLines(l.coordPanel)
-	height = l.vpHeight
-	maxOff := m.viewport.TotalLineCount() - height
+	total := m.viewport.TotalLineCount()
+	maxOff := total - l.vpHeight
 	if maxOff < 0 {
 		maxOff = 0
 	}
-	if m.pinnedToBottom {
-		return top, height, maxOff
+	offset = maxOff
+	if !m.pinnedToBottom {
+		offset = m.viewport.YOffset()
+		if offset > maxOff {
+			offset = maxOff
+		}
+		if offset < 0 {
+			offset = 0
+		}
 	}
-	offset = m.viewport.YOffset()
-	if offset > maxOff {
-		offset = maxOff
+	height = l.vpHeight
+	if rest := total - offset; rest < height {
+		height = rest
 	}
-	if offset < 0 {
-		offset = 0
+	for height > 0 && offset+height-1 < len(m.contentLines) &&
+		strings.TrimSpace(ansi.Strip(m.contentLines[offset+height-1])) == "" {
+		height--
+	}
+	if height < 0 {
+		height = 0
 	}
 	return top, height, offset
 }

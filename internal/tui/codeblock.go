@@ -81,14 +81,14 @@ func insertCodeHeaders(rendered []string, blocks []codeBlock, width int, theme T
 	var ins []insertion
 	i := 0
 	for _, blk := range blocks {
-		key := firstNonBlank(blk.code)
-		if key == "" {
+		keys := leadingNonBlank(blk.code, codeMatchLines)
+		if len(keys) == 0 {
 			continue
 		}
 		for j := i; j < len(rendered); j++ {
-			if strings.HasPrefix(strings.TrimSpace(ansi.Strip(rendered[j])), key) {
+			if end, ok := matchBlockAt(rendered, j, keys, width); ok {
 				ins = append(ins, insertion{at: j, blk: blk})
-				i = j + 1
+				i = end
 				break
 			}
 		}
@@ -107,13 +107,46 @@ func insertCodeHeaders(rendered []string, blocks []codeBlock, width int, theme T
 	return out, headerAt
 }
 
-func firstNonBlank(code string) string {
+// codeMatchLines is how many leading non-blank code lines must appear, in
+// order, on consecutive non-blank rendered lines to locate a block. One line
+// is ambiguous ("{", "}", "return") and lands headers inside other blocks.
+const codeMatchLines = 3
+
+// leadingNonBlank returns up to n leading non-blank lines of code, trimmed.
+func leadingNonBlank(code string, n int) []string {
+	var out []string
 	for _, l := range strings.Split(code, "\n") {
 		if t := strings.TrimSpace(l); t != "" {
-			return t
+			out = append(out, t)
+			if len(out) == n {
+				break
+			}
 		}
 	}
-	return ""
+	return out
+}
+
+// matchBlockAt reports whether keys appear on consecutive non-blank rendered
+// lines starting at rendered[j], and the index just past the match. A line
+// must equal its key, except that a line glamour wrapped (near width) may be
+// a prefix of it.
+func matchBlockAt(rendered []string, j int, keys []string, width int) (int, bool) {
+	k := 0
+	for ; j < len(rendered) && k < len(keys); j++ {
+		r := strings.TrimSpace(ansi.Strip(rendered[j]))
+		if r == "" {
+			if k == 0 {
+				return 0, false
+			}
+			continue
+		}
+		wrapped := ansi.StringWidth(r) >= width-8 && strings.HasPrefix(keys[k], r)
+		if r != keys[k] && !wrapped {
+			return 0, false
+		}
+		k++
+	}
+	return j, k == len(keys)
 }
 
 // codeHeaderWidth is the header width for a text column of opts.width.
