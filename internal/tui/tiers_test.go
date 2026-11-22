@@ -17,9 +17,12 @@ type stubTiers struct {
 func (s stubTiers) List() []modeltier.Binding             { return nil }
 func (s stubTiers) Providers() []modeltier.ProviderStatus { return nil }
 func (s stubTiers) Bind(string, string, string) error     { return nil }
-func (s stubTiers) Unbind(string) error                   { return nil }
-func (s stubTiers) MainContextWindow() int                { return s.window }
-func (s stubTiers) Warnings() []string                    { return s.warnings }
+func (s stubTiers) BindWithLimits(string, string, string, int) error {
+	return nil
+}
+func (s stubTiers) Unbind(string) error    { return nil }
+func (s stubTiers) MainContextWindow() int { return s.window }
+func (s stubTiers) Warnings() []string     { return s.warnings }
 
 func newTieredModel(window int, warnings ...string) AppModel {
 	appStore := state.NewAppStateStore(state.AppState{

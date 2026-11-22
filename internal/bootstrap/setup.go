@@ -108,7 +108,14 @@ func (b *setupBackend) ListModels(ctx context.Context, in commands.SetupInput) (
 	if err != nil {
 		return nil, err
 	}
-	listed, err := api.ListModels(ctx, api.ClientConfig{Provider: api.Provider(in.Format), BaseURL: in.BaseURL, APIKey: key}, b.httpClient)
+	return listSetupModels(ctx, api.ClientConfig{Provider: api.Provider(in.Format), BaseURL: in.BaseURL, APIKey: key}, b.httpClient)
+}
+
+// listSetupModels lists an endpoint's models for the /setup and /tier
+// pickers, wrapping commands.ErrModelListUnsupported when the endpoint has
+// no usable model list.
+func listSetupModels(ctx context.Context, cfg api.ClientConfig, httpClient *http.Client) ([]commands.SetupModel, error) {
+	listed, err := api.ListModels(ctx, cfg, httpClient)
 	var le *api.ListModelsError
 	switch {
 	case errors.As(err, &le) && le.Kind == api.ListModelsNotSupported:

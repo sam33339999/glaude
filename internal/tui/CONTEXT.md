@@ -2,13 +2,13 @@
 package: tui
 import_path: internal/tui
 layer: tui
-generated_at: 2026-11-22T08:07:32Z
-source_files: [agentcolors.go, autorun.go, bashmode.go, btw.go, clipboard_paste.go, cmds.go, completion.go, coordinator.go, init.go, input.go, keys.go, memstat.go, memstat_darwin.go, memstat_linux.go, memstat_other.go, memstat_windows.go, messagelist.go, messages.go, model.go, modelpicker.go, paste.go, paste_input.go, permissions.go, rendercache.go, resumepicker.go, setup_dialog.go, setupwizard.go, setupwizard_view.go, spinner.go, statusbar.go, styles.go, textwidth.go, theme.go, toolview.go, turntiming.go, update.go, view.go, welcome.go]
+generated_at: 2026-11-22T14:16:46Z
+source_files: [agentcolors.go, autorun.go, bashmode.go, btw.go, clipboard_paste.go, cmds.go, codeblock.go, completion.go, coordinator.go, init.go, input.go, keys.go, memstat.go, memstat_darwin.go, memstat_linux.go, memstat_other.go, memstat_windows.go, messagelist.go, messages.go, model.go, modelpicker.go, paste.go, paste_input.go, permissions.go, rendercache.go, resumepicker.go, selection.go, setup_dialog.go, setupwizard.go, setupwizard_view.go, spinner.go, statusbar.go, styles.go, textwidth.go, theme.go, tier_dialog.go, tierpicker.go, toolview.go, turntiming.go, update.go, view.go, welcome.go]
 ---
 
 # internal/tui
 
-> Layer: **TUI** · Files: 38 · Interfaces: 0 · Structs: 38 · Functions: 6
+> Layer: **TUI** · Files: 42 · Interfaces: 0 · Structs: 38 · Functions: 6
 
 ## Structs
 
@@ -16,7 +16,7 @@ source_files: [agentcolors.go, autorun.go, bashmode.go, btw.go, clipboard_paste.
 - **AgentProgressMsg** — 3 fields: TaskID, Activity, Detail
 - **AgentStatusMsg** — 5 fields: TaskID, Status, Description, Result, Summary
 - **AgentTaskState** — 12 fields: ID, Name, AgentType, Description, Status, StartTime, ElapsedMs, OutputTokens, ...
-- **AppModel** — 91 fields
+- **AppModel** — 100 fields
 - **CommandResultMsg** — 2 fields: Text, IsError
 - **CompactDoneMsg** — 1 fields: Summary
 - **CoordinatorPanel** — 3 fields: Tasks, SelectedIndex, TaskOrder
@@ -45,7 +45,7 @@ source_files: [agentcolors.go, autorun.go, bashmode.go, btw.go, clipboard_paste.
 - **StreamUserTurnMsg** — 1 fields: FinalMessage
 - **SystemTextMsg** — 1 fields: Text
 - **TermResizedMsg** — 2 fields: Width, Height
-- **Theme** — 12 fields: Name, Primary, Secondary, Accent, Muted, Error, Warning, Success, ...
+- **Theme** — 13 fields: Name, Primary, Secondary, Accent, Muted, Error, Warning, Success, ...
 - **TickMsg** — 1 fields: Time
 - **TokenUsage** — 4 fields: Input, Output, CacheRead, CacheCreated
 - **TranscriptErrMsg** — 1 fields: Err
@@ -82,7 +82,7 @@ source_files: [agentcolors.go, autorun.go, bashmode.go, btw.go, clipboard_paste.
 
 ## Dependencies
 
-**Imports:** `internal/agenttype`, `internal/api`, `internal/clipboard`, `internal/commands`, `internal/compact`, `internal/coordinator`, `internal/engine`, `internal/memdir`, `internal/msgqueue`, `internal/permissions`, `internal/soul`, `internal/state`, `internal/tools`, `internal/tools/shell`, `internal/transcript`, `pkg/types`
+**Imports:** `internal/agenttype`, `internal/api`, `internal/clipboard`, `internal/commands`, `internal/compact`, `internal/coordinator`, `internal/engine`, `internal/memdir`, `internal/modeltier`, `internal/msgqueue`, `internal/permissions`, `internal/soul`, `internal/state`, `internal/tools`, `internal/tools/shell`, `internal/transcript`, `pkg/types`
 
 **Imported by:** `internal/bootstrap`
 
@@ -110,6 +110,7 @@ source_files: [agentcolors.go, autorun.go, bashmode.go, btw.go, clipboard_paste.
 - **2026-11-19 等級注入**：`New`/`newAppModel` 在 `mcpPool` 後新增 `tiers commands.TierManager`；建 `CommandContext` 時帶入。狀態列的上下文長度改用 `compact.ResolveContextWindow(model, [main] context_window)`，啟動與 `/model` 切換都一樣。
 - 最終審查後補修：啟動時把 `tiers.Warnings()` 逐則插入成 TUI 本地的 system 訊息（不進 engine 歷史，不影響前綴）。
 - **2026-11-19 /setup 設定引導**：`setupWizard`（`setupwizard.go`）是純狀態機，`handleKey` 回傳動作，網路與寫檔由 `setup_dialog.go` 以 `tea.Cmd` 執行（Update 不做 I/O）。每次發出或放棄請求都會遞增 `gen`，回來的 `setupModelsMsg`/`setupAppliedMsg` gen 不符就丟棄（例如驗證中按了 Esc）。`tea.PasteMsg` 在 `dialogSetup` 時交給 wizard，讓 API key 可以貼上。`tui.New`/`newAppModel` 在 `tiers` 後新增 `setup commands.SetupBackend`；`NeedsSetup()` 為真時啟動訊息提示輸入 /setup（TUI 本地訊息，不進 engine 歷史）。
+- **2026-11-22 /tier 互動選單**：不帶參數的 `/tier` 開 `dialogTier`。`tierPicker`（`tierpicker.go`）同樣是純狀態機，I/O 在 `tier_dialog.go` 的 `tea.Cmd`：開啟時對每個有金鑰的 provider 呼叫 `commands.TierModelLister.ListProviderModels`（`m.tiers` 的選用介面，bootstrap 的 `tierManager` 實作），選定後 `BindWithLimits`/`Unbind` 寫回 config.toml。候選＝endpoint 列出的模型 ∪ `[providers.<id>.models]` 宣告的模型；搜尋字串為 `已知provider:模型` 且不在清單時提供自訂列。`tierSeq` 遞增使已關閉選單的結果被丟棄。
 - **2026-11-20 /model 選單**：`modelPicker` 列出 default 與等級（不可用的列顯示原因、游標跳過）；對話已有內容時先開 `dialogModelConfirm` 說明快取失效（≈token 數、窗口不足時警告），y 才 `Apply`。查詢中拒絕切換；確認框開著時不再疊對話框。`ModelSwitcher` 為 nil 時維持舊的 `SetModel` 行為。
 - **2026-11-20 /btw**：`/btw` 在送出時先於「查詢中排隊」被攔下並立即開始（`btw.go`）。主腦在跑時讀 `mainSnap`（engine 寫入的快照），閒置時用 `GetMessages()` 與 `buildMainSystemPrompt`（從 `startQueryCmd` 抽出），讓前綴與主腦一致。btw 的串流以 `listenBTW` 逐段讀進 TUI 本地區塊（`btwMessageID`，不進 engine 歷史與 transcript）。Esc 先停 btw、再按才中斷主腦；ctrl+y 交給主腦：執行中入列（`Origin` 標記），閒置或沒被接走時存為 `btwPending`，附加到下一則使用者訊息。`tui.New`/`newAppModel` 在 `models` 後新增 `btwTarget` 參數。
 - **2026-11-20 每輪耗時（turntiming.go）**：所有查詢起點（直送、queue 的 Prompt/ExternalPrompt、slash `DisplayNone`）統一走 `beginQuery()`，記 `turnStart` 並歸零 `turnStats`；`StreamDoneMsg`／`StreamErrorMsg`／`doAbort` 呼叫 `finishTurn(done|error|interrupted)`。用實際時鐘（可注入 `now`）而非 spinner tick 累加，因為 tick 會漂移。done/interrupted 附加 TUI 本地系統訊息（`✻ Worked for …`／`✻ Interrupted after …`），不進 engine 歷史與 transcript，不動前綴。每輪一筆 JSONL 以 `tea.Cmd` 附加到 `~/.glaude/turn-timings.jsonl`（全域檔，`cwd` 欄位區分專案；不記 prompt 內容；寫檔失敗靜默）。`turnLogPath` 只在 `tui.New` 設定，`newAppModel`（測試路徑）為空即不寫檔。`finishTurn` 在沒有 `turnStart` 時是 no-op，所以中斷後、下一輪開始前抵達的過期結束事件不會重複記錄；若過期事件在新一輪已開始後才到，會提早結束新一輪（`StreamDoneMsg` 沒有 queryGen 比對，屬既有問題）。`input_tokens` 不含快取命中，另記 `cache_read_tokens`／`cache_creation_tokens`。

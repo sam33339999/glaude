@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -17,6 +18,9 @@ type TierManager interface {
 	Providers() []modeltier.ProviderStatus
 	// Bind points tier at providerID:modelID and rewrites config.toml.
 	Bind(tier, providerID, modelID string) error
+	// BindWithLimits is Bind that also writes the tier's context_window when
+	// contextWindow > 0 (e.g. reported by the provider's model list).
+	BindWithLimits(tier, providerID, modelID string, contextWindow int) error
 	// Unbind clears tier's binding and rewrites config.toml.
 	Unbind(tier string) error
 	// MainContextWindow returns [main] context_window (0 = unset).
@@ -27,12 +31,22 @@ type TierManager interface {
 
 var _ TierManager = (*modeltier.Store)(nil)
 
-const tierUsage = "Usage: /tier | /tier <tier> <providerID>:<modelID> | /tier <tier> none"
+// TierModelLister is optionally implemented by the TierManager handed to the
+// TUI: it lists the models a provider serves, for the /tier picker. ctx
+// bounds the network call. Implementations wrap ErrModelListUnsupported when
+// the provider cannot list models.
+type TierModelLister interface {
+	ListProviderModels(ctx context.Context, providerID string) ([]SetupModel, error)
+}
+
+// Placeholders are upper-case words, not <angle brackets>: system messages
+// are rendered as markdown, which drops <...> as HTML.
+const tierUsage = "Usage: /tier (opens the picker) | /tier TIER PROVIDER:MODEL | /tier TIER none"
 
 func cmdTier() *Command {
 	return &Command{
 		Name:        "tier",
-		Description: "Show or change model tier bindings (lite/pro/max) from ~/.glaude/config.toml",
+		Description: "Pick or change model tier bindings (lite/pro/max) in ~/.glaude/config.toml",
 		Execute: func(ctx CommandContext, args string) Result {
 			if ctx.Tiers == nil {
 				return Result{Text: "Model tiers are not available in this session.", Display: DisplayError}
@@ -40,7 +54,7 @@ func cmdTier() *Command {
 			fields := strings.Fields(args)
 			switch {
 			case len(fields) == 0:
-				return Result{Text: formatTiers(ctx.Tiers), Display: DisplayMessage}
+				return Result{OpenDialog: "tier", Display: DisplayNone}
 			case len(fields) == 2 && strings.EqualFold(fields[1], "none"):
 				if err := ctx.Tiers.Unbind(fields[0]); err != nil {
 					return Result{Text: err.Error(), Display: DisplayError}
@@ -70,43 +84,4 @@ func bindTier(m TierManager, tier, ref string) Result {
 			tier, provider, model),
 		Display: DisplayMessage,
 	}
-}
-
-func formatTiers(m TierManager) string {
-	var b strings.Builder
-	if ws := m.Warnings(); len(ws) > 0 {
-		b.WriteString("Warnings (fix ~/.glaude/config.toml and restart):\n")
-		for _, w := range ws {
-			b.WriteString("  " + w + "\n")
-		}
-	}
-	b.WriteString("Tiers:\n")
-	for _, t := range m.List() {
-		if t.Provider == "" {
-			fmt.Fprintf(&b, "  %-6s (unbound, inherits main model)\n", t.Tier)
-			continue
-		}
-		fmt.Fprintf(&b, "  %-6s %s:%s", t.Tier, t.Provider, t.Model)
-		if t.ContextWindow > 0 {
-			fmt.Fprintf(&b, "  context_window=%d", t.ContextWindow)
-		}
-		if t.MaxTokens > 0 {
-			fmt.Fprintf(&b, "  max_tokens=%d", t.MaxTokens)
-		}
-		b.WriteString("\n")
-	}
-	b.WriteString("Providers:\n")
-	for _, p := range m.Providers() {
-		key := ""
-		switch {
-		case p.APIKeyEnv == "":
-		case p.KeyPresent:
-			key = "  key " + p.APIKeyEnv + " set"
-		default:
-			key = "  key " + p.APIKeyEnv + " missing"
-		}
-		fmt.Fprintf(&b, "  %-12s %s%s\n", p.ID, p.Format, key)
-	}
-	b.WriteString(tierUsage)
-	return b.String()
 }

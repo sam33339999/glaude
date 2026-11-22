@@ -2,7 +2,7 @@
 package: types
 import_path: pkg/types
 layer: types
-generated_at: 2026-11-22T08:07:32Z
+generated_at: 2026-11-22T14:16:46Z
 source_files: [command.go, hooks.go, ids.go, logs.go, message.go, permissions.go, plugin.go, question.go, todo.go, types.go]
 ---
 
@@ -163,14 +163,14 @@ type MCPConnection interface {
 - `AggregatedHookResult` → `internal/hooks/hooks.go`
 - `AppStateReader` → `internal/state/store.go`
 - `CacheControl` → `internal/engine/query.go`
-- `ContentBlock` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/run.go`, `internal/bootstrap/session_test.go` (test), `internal/bootstrap/wire.go`, `internal/bootstrap/wire_fork_test.go` (test) + 44 more
+- `ContentBlock` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/run.go`, `internal/bootstrap/session_test.go` (test), `internal/bootstrap/wire.go`, `internal/bootstrap/wire_fork_test.go` (test) + 46 more
 - `EntryEnvelope` → `internal/commands/resume.go`, `internal/session/store.go`, `internal/session/store_test.go` (test)
 - `HookDefinition` → `internal/config/loader.go`, `internal/config/loader_test.go` (test), `internal/hooks/hooks.go`
 - `HookResult` → `internal/hooks/hooks.go`
 - `ImageSource` → `internal/compact/images_test.go` (test), `internal/engine/btw_test.go` (test), `internal/engine/tool_images_test.go` (test), `internal/tui/clipboard_paste.go`, `internal/tui/clipboard_paste_test.go` (test) + 4 more
 - `LoadedPlugin` → `internal/plugin/plugin.go`, `internal/state/store.go`
 - `MCPConnection` → `internal/state/store.go`
-- `Message` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/run.go`, `internal/bootstrap/session.go`, `internal/bootstrap/session_test.go` (test), `internal/bootstrap/wire.go` + 61 more
+- `Message` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/run.go`, `internal/bootstrap/session.go`, `internal/bootstrap/session_test.go` (test), `internal/bootstrap/wire.go` + 64 more
 - `PermissionRule` → `internal/bootstrap/wire.go`
 - `PluginConfig` → `internal/plugin/plugin.go`
 - `PluginError` → `internal/plugin/plugin.go`

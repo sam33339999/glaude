@@ -1,6 +1,6 @@
 ---
 type: auto-generated-index
-generated_at: 2026-11-22T08:07:32Z
+generated_at: 2026-11-22T14:16:46Z
 package_count: 46
 ---
 
@@ -49,7 +49,7 @@ package_count: 46
 | `internal/tools/web` | Tools | HTTPClient(1m), WebFetchInput, WebFetchOutput, WebSearchInput, WebSearchOutput | [CONTEXT](../../internal/tools/web/CONTEXT.md) |
 | `internal/tui` | TUI | AgentColorManager, AgentProgressMsg, AgentStatusMsg, AgentTaskState, AppModel | [CONTEXT](../../internal/tui/CONTEXT.md) |
 | `internal/bootstrap` | CLI | AppContainer, ContainerOptions | [CONTEXT](../../internal/bootstrap/CONTEXT.md) |
-| `internal/commands` | CLI | MCPServerLister(1m), ModelSwitcher(3m), SetupBackend(5m), TierManager(6m), Command | [CONTEXT](../../internal/commands/CONTEXT.md) |
+| `internal/commands` | CLI | MCPServerLister(1m), ModelSwitcher(3m), SetupBackend(5m), TierManager(7m), TierModelLister(1m) | [CONTEXT](../../internal/commands/CONTEXT.md) |
 
 ---
 *46 packages across 8 layers.*

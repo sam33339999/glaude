@@ -412,6 +412,10 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.setupWizard.handlePaste(msg.Content)
 			return m, nil
 		}
+		if m.activeDialog == dialogTier && m.tierPicker != nil {
+			m.tierPicker.handlePaste(msg.Content)
+			return m, nil
+		}
 		if m.activeDialog != dialogNone {
 			return m, nil
 		}
@@ -437,6 +441,12 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.onSetupModels(msg), nil
 	case setupAppliedMsg:
 		return m.onSetupApplied(msg), nil
+
+	// --- /tier picker results ---
+	case tierModelsMsg:
+		return m.onTierModels(msg), nil
+	case tierAppliedMsg:
+		return m.onTierApplied(msg), nil
 
 	// --- @-mention file index built in the background ---
 	case fileIndexReadyMsg:
@@ -611,6 +621,8 @@ func (m AppModel) applyCommandResult(result commands.Result, name string) (AppMo
 			m.activeDialog = dialogConfig
 		case "setup":
 			m = m.openSetupDialog()
+		case "tier":
+			return m.openTierPicker()
 		case "model":
 			m = m.openModelPicker()
 		case "resume":

@@ -21,6 +21,9 @@ type ProviderStatus struct {
 	// KeyPresent reports whether APIKeyEnv is set, checked at call time.
 	// Always true for MainProviderID and for providers without APIKeyEnv.
 	KeyPresent bool
+	// Models lists the model IDs declared under [providers.<id>.models],
+	// sorted. Empty for MainProviderID.
+	Models []string
 }
 
 // List returns every known tier sorted by name. lite / pro / max are always
@@ -58,7 +61,13 @@ func (s *Store) Providers() []ProviderStatus {
 	sort.Strings(ids)
 	for _, id := range ids {
 		p := s.cfg.Providers[id]
+		models := make([]string, 0, len(p.Models))
+		for m := range p.Models {
+			models = append(models, m)
+		}
+		sort.Strings(models)
 		out = append(out, ProviderStatus{
+			Models:     models,
 			ID:         id,
 			Format:     p.Format,
 			BaseURL:    p.BaseURL,

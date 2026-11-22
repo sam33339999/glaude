@@ -64,6 +64,8 @@ func (m AppModel) handleKey(key tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.handleModelPickerKey(key)
 	case dialogModelConfirm:
 		return m.handleModelConfirmKey(key)
+	case dialogTier:
+		return m.handleTierKey(key)
 	}
 
 	// --- Normal / idle state ---
