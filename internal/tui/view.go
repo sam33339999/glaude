@@ -286,7 +286,7 @@ func (m *AppModel) syncViewportContent() {
 	}
 	msgs := m.visibleMessages()
 	m.renderCache.prune(len(msgs))
-	list, refs := renderMessageListRefs(msgs, m.renderOpts(), m.renderCache)
+	list, refs, userLines := renderMessageListLayout(msgs, m.renderOpts(), m.renderCache)
 	contentBuilder.WriteString(list)
 
 	// Trim trailing newlines to avoid excessive blank space at bottom.
@@ -297,6 +297,10 @@ func (m *AppModel) syncViewportContent() {
 	for _, r := range refs {
 		r.line += headerLines
 		m.codeRefs = append(m.codeRefs, r)
+	}
+	m.userTurnLines = m.userTurnLines[:0]
+	for _, l := range userLines {
+		m.userTurnLines = append(m.userTurnLines, l+headerLines)
 	}
 	if m.termHeight > 0 {
 		m.viewport.SetHeight(m.viewportHeight())

@@ -249,9 +249,18 @@ func renderMessageList(messages []types.Message, opts renderOptions, cache *mess
 // renderMessageListRefs is renderMessageList that also reports every code
 // block header, with line indices into the returned string.
 func renderMessageListRefs(messages []types.Message, opts renderOptions, cache *messageRenderCache) (string, []codeBlockRef) {
+	out, refs, _ := renderMessageListLayout(messages, opts, cache)
+	return out, refs
+}
+
+// renderMessageListLayout is renderMessageListRefs that also reports the
+// first line of every visible user turn (for jumping between turns), with
+// line indices into the returned string.
+func renderMessageListLayout(messages []types.Message, opts renderOptions, cache *messageRenderCache) (string, []codeBlockRef, []int) {
 	lookups := buildMessageLookups(messages)
 	var sb strings.Builder
 	var refs []codeBlockRef
+	var userLines []int
 	base := 0 // newlines written so far: the line index of the next message
 	for i, msg := range messages {
 		var out string
@@ -265,6 +274,9 @@ func renderMessageListRefs(messages []types.Message, opts renderOptions, cache *
 			r.line += base
 			refs = append(refs, r)
 		}
+		if isUserTurn(msg) && out != "" {
+			userLines = append(userLines, base)
+		}
 		sb.WriteString(out)
 		base += strings.Count(out, "\n")
 		// Blank line between messages for visual separation.
@@ -273,7 +285,13 @@ func renderMessageListRefs(messages []types.Message, opts renderOptions, cache *
 			base++
 		}
 	}
-	return sb.String(), refs
+	return sb.String(), refs, userLines
+}
+
+// isUserTurn reports whether msg renders as a user turn (tool results and
+// TUI notices do not).
+func isUserTurn(msg types.Message) bool {
+	return msg.Role == types.RoleUser && !isSystemMessage(msg) && msg.ID != btwMessageID
 }
 
 // renderMessage dispatches to the appropriate renderer for a single message.
@@ -314,12 +332,20 @@ func renderMessageKind(msg types.Message, opts renderOptions, lookups MessageLoo
 
 // renderUserMessage renders a user turn. Tool_result blocks are skipped here
 // because they are rendered inline with their tool_use in assistant messages.
-// Long input wraps to the terminal width with continuation lines indented
-// under the "> " prompt.
+// Every line carries a Primary-coloured "▌" bar and the theme's UserBG,
+// padded to the terminal width so the turn reads as one block. Long input
+// wraps to the width; the padding is trailing spaces, which selection copy
+// trims.
 func renderUserMessage(msg types.Message, opts renderOptions) string {
 	var sb strings.Builder
-	prefix := primaryStyle(opts.theme).Bold(true).Render("> ")
-	wrapWidth := opts.width - 2
+	bg := opts.theme.UserBG
+	if bg == nil {
+		bg = opts.theme.CodeBG
+	}
+	bar := primaryStyle(opts.theme).Bold(true).Background(bg).Render(userBar)
+	text := secondaryStyle(opts.theme).Background(bg)
+	barWidth := xansi.StringWidth(userBar)
+	wrapWidth := opts.width - barWidth
 	if wrapWidth < 10 {
 		wrapWidth = 10
 	}
@@ -328,18 +354,20 @@ func renderUserMessage(msg types.Message, opts renderOptions) string {
 			continue
 		}
 		wrapped := xansi.Wrap(*blk.Text, wrapWidth, "")
-		for i, line := range strings.Split(wrapped, "\n") {
-			if i == 0 {
-				sb.WriteString(prefix)
-			} else {
-				sb.WriteString("  ")
+		for _, line := range strings.Split(wrapped, "\n") {
+			if pad := wrapWidth - xansi.StringWidth(line); pad > 0 {
+				line += strings.Repeat(" ", pad)
 			}
-			sb.WriteString(line)
+			sb.WriteString(bar)
+			sb.WriteString(text.Render(line))
 			sb.WriteString("\n")
 		}
 	}
 	return sb.String()
 }
+
+// userBar marks each line of a user turn.
+const userBar = "▌ "
 
 // renderAssistantMessage renders an assistant turn, including markdown and tool
 // use blocks. Tool results are displayed inline after their corresponding tool_use.

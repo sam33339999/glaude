@@ -1114,8 +1114,8 @@ func TestView_DialogPermission(t *testing.T) {
 func TestMessageListView_UserMessage(t *testing.T) {
 	msgs := []types.Message{newUserMessage("hello")}
 	v := MessageListView(msgs, 80, true, DefaultDarkTheme, nil, nil)
-	if !strings.Contains(v, ">") {
-		t.Errorf("expected '>' prefix in message view, got: %q", v)
+	if !strings.Contains(v, userBar) || !strings.Contains(v, "hello") {
+		t.Errorf("expected user bar and text in message view, got: %q", v)
 	}
 }
 
