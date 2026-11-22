@@ -21,6 +21,7 @@ require (
 	github.com/coder/acp-go-sdk v0.20.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/spf13/cobra v1.8.1
+	github.com/yuin/goldmark v1.7.13
 	golang.org/x/image v0.44.0
 )
 
@@ -52,7 +53,6 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/xo/terminfo v1.0.0 // indirect
-	github.com/yuin/goldmark v1.7.13 // indirect
 	github.com/yuin/goldmark-emoji v1.0.6 // indirect
 	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect

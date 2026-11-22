@@ -43,6 +43,8 @@ type Runner func(ctx context.Context, name string, args ...string) ([]byte, erro
 type Reader struct {
 	// Run executes a command. New uses exec.CommandContext(...).Output.
 	Run Runner
+	// RunInput executes a command with stdin. New uses exec.CommandContext(...).Run.
+	RunInput InputRunner
 	// LookPath resolves a command name. New uses exec.LookPath.
 	LookPath func(string) (string, error)
 	// Getenv reads an environment variable. New uses os.Getenv.
@@ -57,6 +59,7 @@ type Reader struct {
 func New() *Reader {
 	return &Reader{
 		Run:      defaultRun,
+		RunInput: defaultRunInput,
 		LookPath: exec.LookPath,
 		Getenv:   os.Getenv,
 		GOOS:     runtime.GOOS,

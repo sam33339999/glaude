@@ -142,11 +142,14 @@ func (m AppModel) View() tea.View {
 	// behind a dialog or todo panel that appeared since.
 	vp := m.viewport
 	vp.SetHeight(l.vpHeight)
-	if m.pinnedToBottom {
-		vp.GotoBottom()
-	}
-	if vpContent := strings.TrimRight(vp.View(), "\n "); vpContent != "" {
-		sb.WriteString(vpContent)
+	_, rows, offset := m.viewportGeometry()
+	vp.SetYOffset(offset)
+	if rows > 0 {
+		lines := strings.Split(vp.View(), "\n")
+		if len(lines) > rows {
+			lines = lines[:rows]
+		}
+		sb.WriteString(m.highlightSelection(strings.Join(lines, "\n"), offset))
 		sb.WriteString("\n")
 	}
 
@@ -272,8 +275,10 @@ func (m *AppModel) renderOpts() renderOptions {
 func (m *AppModel) syncViewportContent() {
 	var contentBuilder strings.Builder
 
+	headerLines := 0
 	if header := m.welcomeHeader.View(m.termWidth, m.theme); header != "" {
 		contentBuilder.WriteString(header)
+		headerLines = strings.Count(header, "\n")
 	}
 
 	if m.renderCache == nil {
@@ -281,10 +286,18 @@ func (m *AppModel) syncViewportContent() {
 	}
 	msgs := m.visibleMessages()
 	m.renderCache.prune(len(msgs))
-	contentBuilder.WriteString(renderMessageList(msgs, m.renderOpts(), m.renderCache))
+	list, refs := renderMessageListRefs(msgs, m.renderOpts(), m.renderCache)
+	contentBuilder.WriteString(list)
 
 	// Trim trailing newlines to avoid excessive blank space at bottom.
-	m.viewport.SetContent(strings.TrimRight(contentBuilder.String(), "\n"))
+	content := strings.TrimRight(contentBuilder.String(), "\n")
+	m.viewport.SetContent(content)
+	m.contentLines = strings.Split(content, "\n")
+	m.codeRefs = m.codeRefs[:0]
+	for _, r := range refs {
+		r.line += headerLines
+		m.codeRefs = append(m.codeRefs, r)
+	}
 	if m.termHeight > 0 {
 		m.viewport.SetHeight(m.viewportHeight())
 	}

@@ -18,6 +18,9 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	// --- Window resize ---
 	case tea.WindowSizeMsg:
+		if msg.Width != m.termWidth {
+			m.sel = selectionState{}
+		}
 		m.termWidth = msg.Width
 		m.termHeight = msg.Height
 		m.input = m.input.SetWidth(msg.Width)
@@ -445,6 +448,12 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// --- Mouse events (scroll wheel) ---
 	case tea.MouseWheelMsg:
 		return m.handleMouse(msg)
+	case tea.MouseClickMsg:
+		return m.handleMouseClick(msg)
+	case tea.MouseMotionMsg:
+		return m.handleMouseMotion(msg)
+	case tea.MouseReleaseMsg:
+		return m.handleMouseRelease(msg)
 
 	// --- Keyboard / input ---
 	case tea.KeyPressMsg:
