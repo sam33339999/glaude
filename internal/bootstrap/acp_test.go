@@ -215,7 +215,7 @@ func TestResolveACPSpecs_ReservedNames(t *testing.T) {
 	if _, ok := specs["worker"]; ok {
 		t.Fatal("ACP agent shadowed the worker agent type")
 	}
-	for _, n := range []string{"grok", "opencode", "mine"} {
+	for _, n := range []string{"agy", "grok", "opencode", "mine"} {
 		if _, ok := specs[n]; !ok {
 			t.Errorf("missing %q in %v", n, acpclient.SortedNames(specs))
 		}
@@ -233,7 +233,7 @@ func TestBuildACPManager_StateAndCommands(t *testing.T) {
 	}}}
 	mgr := buildACPManager(ContainerOptions{Headless: true}, settings, forkTestProfiles(), checker, st)
 	defer mgr.Close()
-	if names := mgr.Names(); len(names) != 1 || names[0] != "grok" {
+	if names := mgr.Names(); len(names) != 2 || names[0] != "agy" || names[1] != "grok" {
 		t.Fatalf("names = %v", names)
 	}
 	c := &AppContainer{ACPAgents: mgr, AgentCoordinator: coordinator.NewAgentCoordinator(coordinator.New(coordinator.Config{}))}

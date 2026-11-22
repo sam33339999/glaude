@@ -2,19 +2,21 @@
 package: acpclient
 import_path: internal/acpclient
 layer: services
-generated_at: 2026-11-21T09:43:04Z
+generated_at: 2026-11-22T08:07:32Z
 source_files: [client.go, manager.go, permission.go, proc.go, spec.go]
 ---
 
 # internal/acpclient
 
-> Layer: **Services** · Files: 5 · Interfaces: 0 · Structs: 7 · Functions: 8
+> Layer: **Services** · Files: 5 · Interfaces: 0 · Structs: 9 · Functions: 8
 
 ## Structs
 
 - **AgentSpec** — 7 fields: Name, Command, Args, Env, Model, Description, SessionMeta
 - **Event** — 5 fields: Kind, Text, ToolCallID, Title, Status
 - **Manager** — 7 fields
+- **ModelCatalog** — 4 fields: Current, ThoughtLevel, ThoughtLevels, Models
+- **ModelChoice** — 2 fields: ID, Name
 - **Options** — 5 fields: Permission, Start, Logf, StartupTimeout, ClientVersion
 - **PermissionQuery** — 6 fields: Agent, ToolCallID, Title, Kind, ToolName, Input
 - **Proc** — 6 fields: Stdin, Stdout
@@ -52,6 +54,7 @@ source_files: [client.go, manager.go, permission.go, proc.go, spec.go]
 - `AgentSpec` → `internal/bootstrap/acp.go`, `internal/bootstrap/acp_test.go` (test)
 - `Event` → `internal/bootstrap/acp.go`
 - `Manager` → `internal/bootstrap/acp.go`, `internal/bootstrap/acp_test.go` (test), `internal/bootstrap/wire.go`
+- `ModelCatalog` → `internal/bootstrap/acp.go`
 - `Options` → `internal/bootstrap/acp.go`, `internal/bootstrap/acp_test.go` (test)
 - `PermissionFunc` → `internal/bootstrap/acp.go`, `internal/bootstrap/acp_test.go` (test)
 - `PermissionQuery` → `internal/bootstrap/acp.go`, `internal/bootstrap/acp_test.go` (test)
@@ -74,3 +77,4 @@ source_files: [client.go, manager.go, permission.go, proc.go, spec.go]
 - **權限**：不宣告 fs/terminal 能力，agent 用自己的工具。使用者層設定可能是全放行（例：`~/.grok/config.toml permission_mode="always-approve"`），故 grok 送 `_meta.yoloMode=false`、opencode 注入 `edit/bash/webfetch=ask`，強制 `session/request_permission` 回到 glaude。`MapToolCall` 把 ACP tool call 轉成 glaude 工具形狀（execute→Bash、edit→Edit/Write、read→Read、search→Grep、fetch→WebFetch、其餘→`ExternalAgent`），交 bootstrap 的 checker 判定（規則、受保護路徑、Bash 安全檢查、權限模式皆生效）；headless 未命中規則一律拒絕。選項優先 `allow_once`/`reject_once`，「永遠允許」由 glaude 自己落規則。
 - **輸出隔離**：子行程 stderr 只留最後 4 KiB 供錯誤訊息；SDK 的 slog 導到 `Options.Logf`，絕不寫到終端（會弄壞 TUI）。
 - **測試**：`acptest.Agent` 是可腳本化的假 agent（只依賴 SDK，避免循環 import）；`TestExecStart_RealProcess` 以測試二進位自身當子行程跑真 stdio。SDK agent 端建構時有 `asc.conn` 賦值競態，假 agent 以 gatedReader 迴避（glaude 只用 client 端）。
+- **2026-11-22 內建 `agy`（`agy acp`）與動態模型切換**：`Builtins()` 新增 `agy`（預設 `Model: ""` 沿用使用者 agy 設定，可由 `settings.json` `acpAgents.agy.model` 覆寫；實測 `agy acp` 的 `configId="model"` 同時接受基礎名如 `gemini-4-argon` 與含推理強度的複合名如 `gemini-4-argon-medium`）。`MapToolCall` 補齊 `agy` 工具的 PascalCase 參數映射（`CommandLine`→Bash、`Path`/`Target`/`Replacement`/`Content`→Read/Edit/Write、`Query`/`Pattern`/`SearchPath`→Grep、`Url`→WebFetch）。`Manager.PromptWithModel` 支援每次派工覆寫模型：冷啟動時直接取代 `spec.Model`（只發一次 `set_config_option`），既有 session 若與 `activeModel` 不同才發 `set_config_option`。

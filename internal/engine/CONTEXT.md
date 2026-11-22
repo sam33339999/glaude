@@ -2,7 +2,7 @@
 package: engine
 import_path: internal/engine
 layer: core
-generated_at: 2026-11-20T09:43:00Z
+generated_at: 2026-11-22T08:07:32Z
 source_files: [budget.go, cache_params.go, compaction.go, engine.go, forked_agent.go, msg.go, orchestration.go, query.go, stop_hooks.go, tool_images.go]
 ---
 
@@ -97,10 +97,10 @@ type QueryEngine interface {
 - `CacheSafeParams` → `internal/bootstrap/tiers_test.go` (test), `internal/bootstrap/wire.go`, `internal/bootstrap/wire_fork_test.go` (test), `internal/memdir/dream.go`, `internal/tui/btw.go` + 2 more
 - `Config` → `internal/bootstrap/wire.go`
 - `ForkedAgentConfig` → `internal/memdir/dream.go`, `internal/memdir/extract.go`, `internal/memdir/session_memory.go`
-- `MainTarget` → `internal/bootstrap/modelswitch.go`, `internal/bootstrap/modelswitch_test.go` (test), `internal/bootstrap/tiers_test.go` (test), `internal/bootstrap/wire.go`, `internal/bootstrap/wire_fork_test.go` (test) + 5 more
-- `Msg` → `internal/bootstrap/run.go`, `internal/bootstrap/tiers_test.go` (test), `internal/bootstrap/wire.go`, `internal/bootstrap/wire_fork_test.go` (test), `internal/bootstrap/wire_result_test.go` (test) + 8 more
+- `MainTarget` → `internal/bootstrap/modelswitch.go`, `internal/bootstrap/modelswitch_test.go` (test), `internal/bootstrap/soul_subagent_test.go` (test), `internal/bootstrap/tiers_test.go` (test), `internal/bootstrap/wire.go` + 8 more
+- `Msg` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/run.go`, `internal/bootstrap/tiers_test.go` (test), `internal/bootstrap/wire.go`, `internal/bootstrap/wire_fork_test.go` (test) + 11 more
 - `QueryEngine` → `internal/bootstrap/modelswitch.go`, `internal/bootstrap/wire.go`, `internal/memdir/dream.go`, `internal/tui/cmds.go`, `internal/tui/init.go` + 1 more
-- `QueryParams` → `internal/bootstrap/run.go`, `internal/bootstrap/wire.go`, `internal/bootstrap/wire_fork_test.go` (test), `internal/tui/btw.go`, `internal/tui/btw_test.go` (test) + 2 more
+- `QueryParams` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/run.go`, `internal/bootstrap/wire.go`, `internal/bootstrap/wire_fork_test.go` (test), `internal/tui/btw.go` + 3 more
 - `StopHookContext` → `internal/bootstrap/wire.go`, `internal/memdir/dream.go`, `internal/memdir/extract.go`, `internal/memdir/extract_test.go` (test), `internal/memdir/session_memory.go`
 - `StopHookRegistry` → `internal/bootstrap/wire.go`
 - `SystemPrompt` → `internal/bootstrap/run.go`, `internal/bootstrap/wire.go`, `internal/bootstrap/wire_fork_test.go` (test), `internal/tui/btw.go`, `internal/tui/btw_test.go` (test) + 1 more

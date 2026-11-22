@@ -2,7 +2,7 @@
 package: state
 import_path: internal/state
 layer: infra
-generated_at: 2026-11-20T12:08:03Z
+generated_at: 2026-11-22T08:07:32Z
 source_files: [store.go]
 ---
 
@@ -12,7 +12,7 @@ source_files: [store.go]
 
 ## Structs
 
-- **AppState** — 18 fields: Settings, Verbose, MainLoopModel, ToolPermissionContext, SessionId, WorkingDir, GitBranch, Todos, ...
+- **AppState** — 19 fields: Settings, Verbose, MainLoopModel, ToolPermissionContext, AppendSystemPrompt, SessionId, WorkingDir, GitBranch, ...
 - **ModelSetting** — 2 fields: ModelID, Provider
 - **Store** — 6 fields
 - **TaskState** — 4 fields: AgentId, Status, SessionId, TaskType
@@ -35,7 +35,7 @@ source_files: [store.go]
 ## Change Impact
 
 **Exported type references (files that use types from this package):**
-- `AppState` → `internal/bootstrap/modelswitch.go`, `internal/bootstrap/tiers_test.go` (test), `internal/bootstrap/wire.go`, `internal/bootstrap/wire_fork_test.go` (test), `internal/tools/interact/interact.go` + 19 more
+- `AppState` → `internal/bootstrap/acp.go`, `internal/bootstrap/acp_test.go` (test), `internal/bootstrap/modelswitch.go`, `internal/bootstrap/tiers_test.go` (test), `internal/bootstrap/wire.go` + 22 more
 - `ModelSetting` → `internal/bootstrap/modelswitch.go`, `internal/bootstrap/tiers_test.go` (test), `internal/bootstrap/wire.go`, `internal/bootstrap/wire_fork_test.go` (test), `internal/tui/btw_test.go` (test) + 6 more
 - `WorktreeState` → `internal/tools/interact/worktree.go`
 

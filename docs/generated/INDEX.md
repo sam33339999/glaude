@@ -1,7 +1,7 @@
 ---
 type: auto-generated-index
-generated_at: 2026-11-21T09:43:04Z
-package_count: 45
+generated_at: 2026-11-22T08:07:32Z
+package_count: 46
 ---
 
 # Package Index
@@ -25,7 +25,7 @@ package_count: 45
 | `internal/plugin` | Infra | Manager | [CONTEXT](../../internal/plugin/CONTEXT.md) |
 | `internal/session` | Infra | SessionStorer(3m), SessionManager, SessionStore | [CONTEXT](../../internal/session/CONTEXT.md) |
 | `internal/state` | Infra | AppState, ModelSetting, Store, TaskState, WorktreeState | [CONTEXT](../../internal/state/CONTEXT.md) |
-| `internal/acpclient` | Services | AgentSpec, Event, Manager, Options, PermissionQuery | [CONTEXT](../../internal/acpclient/CONTEXT.md) |
+| `internal/acpclient` | Services | AgentSpec, Event, Manager, ModelCatalog, ModelChoice | [CONTEXT](../../internal/acpclient/CONTEXT.md) |
 | `internal/acpclient/acptest` | Services | Agent | [CONTEXT](../../internal/acpclient/acptest/CONTEXT.md) |
 | `internal/api` | Services | Client(2m), StreamReader(1m), APIError, APIErrorData, Accumulator | [CONTEXT](../../internal/api/CONTEXT.md) |
 | `internal/compact` | Services | Compressor(2m), AutoCompactTrackingState, AutoCompactor, CacheEdit, CompactionExtra | [CONTEXT](../../internal/compact/CONTEXT.md) |
@@ -52,4 +52,4 @@ package_count: 45
 | `internal/commands` | CLI | MCPServerLister(1m), ModelSwitcher(3m), SetupBackend(5m), TierManager(6m), Command | [CONTEXT](../../internal/commands/CONTEXT.md) |
 
 ---
-*45 packages across 8 layers.*
+*46 packages across 8 layers.*

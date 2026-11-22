@@ -30,6 +30,9 @@ const opencodePermissionConfig = `{"permission":{"edit":"ask","bash":"ask","webf
 
 // Builtins returns the built-in agent presets.
 //
+//   - agy: Google Antigravity CLI (`agy acp`). Uses the user's agy default
+//     model unless overridden via settings.json acpAgents.agy.model, the Agent
+//     tool's model parameter, or `/agy -m <model>`.
 //   - grok: Grok Build. GROK_SUBAGENTS=0 / GROK_WORKFLOWS=0 keep the work in
 //     the one session; _meta.yoloMode=false overrides a user-level
 //     always-approve so permission requests reach glaude. The default model is
@@ -37,6 +40,12 @@ const opencodePermissionConfig = `{"permission":{"edit":"ask","bash":"ask","webf
 //   - opencode: opencode. Permission config injected via env (see above).
 func Builtins() map[string]AgentSpec {
 	return map[string]AgentSpec{
+		"agy": {
+			Name:        "agy",
+			Command:     "agy",
+			Args:        []string{"acp"},
+			Description: "Google Antigravity CLI coding agent. Runs in one long-lived session shared across delegations, so files it already read stay in its context.",
+		},
 		"grok": {
 			Name:        "grok",
 			Command:     "grok",

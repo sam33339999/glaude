@@ -2,13 +2,13 @@
 package: commands
 import_path: internal/commands
 layer: cli
-generated_at: 2026-11-21T09:43:04Z
-source_files: [builtins.go, external.go, mcp.go, modelswitch.go, registry.go, resume.go, setup.go, terminal_setup.go, tier.go]
+generated_at: 2026-11-22T08:07:32Z
+source_files: [builtins.go, external.go, goal.go, loop.go, mcp.go, modelswitch.go, registry.go, resume.go, setup.go, soul.go, terminal_setup.go, tier.go]
 ---
 
 # internal/commands
 
-> Layer: **CLI** · Files: 9 · Interfaces: 4 · Structs: 13 · Functions: 6
+> Layer: **CLI** · Files: 12 · Interfaces: 4 · Structs: 15 · Functions: 13
 
 ## Interfaces
 
@@ -63,7 +63,9 @@ type TierManager interface {
 
 - **Command** — 3 fields: Name, Description, Execute
 - **CommandContext** — 10 fields: WorkingDir, Model, SessionID, DarkMode, VimEnabled, Effort, MessageCount, TokensInput, ...
-- **ExternalAgentCommand** — 2 fields: Name, Description
+- **ExternalAgentCommand** — 3 fields: Name, Description, ListModels
+- **GoalVerdict** — 2 fields: Met, Reason
+- **LoopSpec** — 4 fields: Action, Interval, DefaultInterval, Prompt
 - **ModelOption** — 8 fields: Name, Provider, Model, ContextWindow, MaxTokens, Available, Reason, Current
 - **Registry** — 2 fields
 - **Result** — 15 fields: Text, Display, ShouldExit, NewMessages, NewSessionID, NewTheme, NewModel, ModelRef, ...
@@ -77,14 +79,21 @@ type TierManager interface {
 
 ## Function Types
 
-- `ExternalAgentSpawner` — `func(name string, task string) (string, error)`
+- `ExternalAgentSpawner` — `func(name string, model string, task string) (string, error)`
 
 ## Functions
 
 - `DetectTerminal(lookup func(string) string) TerminalInfo`
+- `FormatInterval(d time.Duration) string`
 - `FormatMCPStatus(ctx context.Context, pool MCPServerLister) string`
 - `FormatTerminalSetup(info TerminalInfo) string`
+- `GoalContinuePrompt(condition string, reason string, n int, max int) string`
+- `GoalJudgeUser(condition string, transcript string) string`
+- `GoalKickoffPrompt(condition string) string`
 - `NewRegistry() *Registry`
+- `ParseGoalArgs(args string) (GoalAction, string)`
+- `ParseGoalVerdict(text string) (GoalVerdict, error)`
+- `ParseLoopArgs(args string) (LoopSpec, error)`
 - `RegisterBuiltins(r *Registry)`
 - `RegisterExternalAgents(r *Registry, agents []ExternalAgentCommand, spawn ExternalAgentSpawner)`
 
@@ -94,6 +103,18 @@ type TierManager interface {
 - `DisplayError`
 - `DisplayMessage`
 - `DisplayNone`
+- `GoalClear`
+- `GoalJudgeSystem`
+- `GoalMaxContinuations`
+- `GoalSet`
+- `GoalStatus`
+- `GoalUsage`
+- `LoopDefaultInterval`
+- `LoopMinInterval`
+- `LoopStart`
+- `LoopStatus`
+- `LoopStop`
+- `LoopUsage`
 - `SetupFormatAnthropic`
 - `SetupFormatOpenAI`
 
@@ -107,11 +128,12 @@ type TierManager interface {
 - `Command` → `internal/tui/tui_test.go` (test), `internal/tui/update.go`
 - `CommandContext` → `internal/tui/tui_test.go` (test), `internal/tui/update.go`
 - `ExternalAgentCommand` → `internal/bootstrap/acp.go`
+- `GoalVerdict` → `internal/tui/autorun.go`, `internal/tui/autorun_test.go` (test)
 - `MCPServerLister` → `internal/tui/cmds.go`, `internal/tui/init.go`, `internal/tui/mcp_resume_test.go` (test), `internal/tui/model.go`
 - `ModelOption` → `internal/bootstrap/modelswitch.go`, `internal/bootstrap/modelswitch_test.go` (test), `internal/tui/model.go`, `internal/tui/modelpicker.go`, `internal/tui/modelpicker_test.go` (test)
 - `ModelSwitcher` → `internal/bootstrap/modelswitch.go`, `internal/bootstrap/wire.go`, `internal/tui/init.go`, `internal/tui/model.go`, `internal/tui/modelpicker_test.go` (test)
 - `Registry` → `internal/bootstrap/acp.go`, `internal/tui/completion.go`, `internal/tui/init.go`, `internal/tui/model.go`
-- `Result` → `internal/tui/bashmode_test.go` (test), `internal/tui/btw_send_test.go` (test), `internal/tui/btw_test.go` (test), `internal/tui/mcp_resume_test.go` (test), `internal/tui/modelpicker_test.go` (test) + 4 more
+- `Result` → `internal/tui/autorun_test.go` (test), `internal/tui/bashmode_test.go` (test), `internal/tui/btw_send_test.go` (test), `internal/tui/btw_test.go` (test), `internal/tui/mcp_resume_test.go` (test) + 6 more
 - `SessionSummary` → `internal/tui/mcp_resume_test.go` (test), `internal/tui/resumepicker.go`
 - `SetupBackend` → `internal/bootstrap/setup.go`, `internal/bootstrap/wire.go`, `internal/tui/init.go`, `internal/tui/model.go`, `internal/tui/setup_dialog.go` + 1 more
 - `SetupDefaults` → `internal/bootstrap/setup.go`, `internal/tui/setup_dialog_test.go` (test), `internal/tui/setupwizard.go`, `internal/tui/setupwizard_test.go` (test)
@@ -123,7 +145,7 @@ type TierManager interface {
 
 ## Dependencies
 
-**Imports:** `internal/mcp`, `internal/memdir`, `internal/modeltier`, `internal/session`, `pkg/types`, `pkg/utils/fs`
+**Imports:** `internal/mcp`, `internal/memdir`, `internal/modeltier`, `internal/session`, `internal/soul`, `pkg/types`, `pkg/utils/fs`
 
 **Imported by:** `internal/bootstrap`, `internal/tui`
 
@@ -140,3 +162,4 @@ type TierManager interface {
 - **2026-11-19 `/setup` 與 `SetupBackend`**：`/setup` 只回傳 `OpenDialog: "setup"`，commands 層不做 I/O、不 import `internal/api`（資料型別自己定義）。`SetupDefaults.KeySources` 依格式記錄可沿用的金鑰來源（`settings` 只對目前格式有效、`env:<VAR>`），讓換格式後的提示與阻擋正確。`SetupInput.APIKey` 為空表示沿用，沿用的金鑰由 backend 取得，不經過 TUI。
 - **2026-11-20 `/model`**：無參數回 `OpenDialog: "model"`，有參數回 `ModelRef`；解析與切換都由注入的 `ModelSwitcher` 做（commands 不 import bootstrap）。`ModelOption.Label()` 統一顯示 `provider:model`。
 - **2026-11-20 /btw**：`cmdBTW` 只為了 /help 與補全而註冊；TUI 在指令分派前就攔下 `/btw`，所以查詢進行中也能立即執行。
+- **2026-11-22 外部 ACP agent 斜線指令 `-m`/`--model`**：`ExternalAgentSpawner` 簽名擴為 `func(name, model, task string) (string, error)`；`/<agent> [-m <model>|--model=<model>] <task>` 解析選填模型旗標並轉交 `AgentSpawnRequest.Model`。

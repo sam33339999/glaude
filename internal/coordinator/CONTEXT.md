@@ -2,7 +2,7 @@
 package: coordinator
 import_path: internal/coordinator
 layer: core
-generated_at: 2026-11-19T13:49:59Z
+generated_at: 2026-11-22T08:07:32Z
 source_files: [adapter.go, coordinator.go, prompt.go]
 ---
 
@@ -74,14 +74,14 @@ type Coordinator interface {
 - `mockCoordinator` in `internal/tools/tasks/tasks_test.go`
 
 **Exported type references (files that use types from this package):**
-- `Config` → `internal/bootstrap/wire.go`
+- `Config` → `internal/bootstrap/acp_test.go` (test), `internal/bootstrap/wire.go`
 - `Coordinator` → `internal/bootstrap/wire.go`
 - `Event` → `internal/bootstrap/wire.go`, `internal/tui/init.go`, `internal/tui/model.go`
-- `OnProgressFn` → `internal/bootstrap/wire.go`
+- `OnProgressFn` → `internal/bootstrap/acp.go`, `internal/bootstrap/wire.go`
 - `OnStatusChangeFn` → `internal/bootstrap/wire.go`
-- `ProgressEvent` → `internal/bootstrap/wire.go`
-- `RunAgentFn` → `internal/bootstrap/wire.go`
-- `SpawnRequest` → `internal/bootstrap/tiers_test.go` (test), `internal/bootstrap/wire.go`, `internal/bootstrap/wire_fork_test.go` (test), `internal/bootstrap/wire_result_test.go` (test)
+- `ProgressEvent` → `internal/bootstrap/acp.go`, `internal/bootstrap/acp_test.go` (test), `internal/bootstrap/wire.go`
+- `RunAgentFn` → `internal/bootstrap/acp.go`, `internal/bootstrap/wire.go`
+- `SpawnRequest` → `internal/bootstrap/acp.go`, `internal/bootstrap/acp_test.go` (test), `internal/bootstrap/soul_subagent_test.go` (test), `internal/bootstrap/tiers_test.go` (test), `internal/bootstrap/wire.go` + 2 more
 - `TaskNotification` → `internal/tui/update.go`
 
 ## Dependencies

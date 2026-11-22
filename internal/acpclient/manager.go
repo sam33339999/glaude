@@ -54,6 +54,29 @@ type Result struct {
 	Restarted bool
 }
 
+// ModelChoice is one selectable model value reported by an ACP agent's
+// session configOptions.
+type ModelChoice struct {
+	// ID is the value passed to session/set_config_option (configId "model").
+	ID string
+	// Name is the human-readable label reported by the agent.
+	Name string
+}
+
+// ModelCatalog holds the current model and available choices reported by an
+// ACP agent session.
+type ModelCatalog struct {
+	// Current is the currently active model ID on the session.
+	Current string
+	// ThoughtLevel is the active thinking/effort level if the agent exposes a
+	// "thought_level" config option (e.g. agy: low, medium, high, xhigh).
+	ThoughtLevel string
+	// ThoughtLevels lists selectable thinking/effort levels when supported.
+	ThoughtLevels []string
+	// Models lists the selectable model options reported by the agent.
+	Models []ModelChoice
+}
+
 // Options configures a Manager.
 type Options struct {
 	// Permission decides the agents' permission requests. nil rejects all.
@@ -151,6 +174,14 @@ var ErrClosed = errors.New("acpclient: manager closed")
 // on first use (or after its process died), and streams updates to onEvent.
 // Prompts to the same session are serialized.
 func (m *Manager) Prompt(ctx context.Context, name, cwd, text string, onEvent func(Event)) (Result, error) {
+	return m.PromptWithModel(ctx, name, cwd, "", text, onEvent)
+}
+
+// PromptWithModel is like Prompt but switches the agent session to model (when
+// non-empty and different from the session's active model) before sending the
+// prompt. On a cold start, model overrides spec.Model so only one model config
+// call is made.
+func (m *Manager) PromptWithModel(ctx context.Context, name, cwd, model, text string, onEvent func(Event)) (Result, error) {
 	spec, ok := m.Spec(name)
 	if !ok {
 		return Result{}, fmt.Errorf("acpclient: unknown agent %q", name)
@@ -174,6 +205,7 @@ func (m *Manager) Prompt(ctx context.Context, name, cwd, text string, onEvent fu
 	sl.mu.Lock()
 	defer sl.mu.Unlock()
 
+	model = strings.TrimSpace(model)
 	var res Result
 	if sl.sess == nil || !sl.sess.alive() {
 		if sl.sess != nil {
@@ -186,7 +218,11 @@ func (m *Manager) Prompt(ctx context.Context, name, cwd, text string, onEvent fu
 		} else {
 			onEvent(Event{Kind: EventNotice, Text: "Starting " + name})
 		}
-		s, err := m.startSession(ctx, spec, cwd, onEvent)
+		bootSpec := spec
+		if model != "" {
+			bootSpec.Model = model
+		}
+		s, err := m.startSession(ctx, bootSpec, cwd, onEvent)
 		if err != nil {
 			return res, err
 		}
@@ -198,6 +234,12 @@ func (m *Manager) Prompt(ctx context.Context, name, cwd, text string, onEvent fu
 			return res, ErrClosed
 		}
 		sl.sess, sl.started = s, true
+	} else if model != "" && model != sl.sess.activeModel {
+		if merr := sl.sess.setModel(ctx, model); merr != nil {
+			onEvent(Event{Kind: EventNotice, Text: fmt.Sprintf("could not set %s model %q: %v (keeping current model)", spec.Name, model, merr)})
+		} else {
+			sl.sess.activeModel = model
+		}
 	}
 
 	text, stop, err := sl.sess.prompt(ctx, text, onEvent)
@@ -206,6 +248,55 @@ func (m *Manager) Prompt(ctx context.Context, name, cwd, text string, onEvent fu
 		err = fmt.Errorf("%w%s", err, sl.sess.stderrHint())
 	}
 	return res, err
+}
+
+// Models returns the model catalog for the named agent's session in cwd,
+// starting the session on first use so its configOptions are populated.
+func (m *Manager) Models(ctx context.Context, name, cwd string) (ModelCatalog, error) {
+	spec, ok := m.Spec(name)
+	if !ok {
+		return ModelCatalog{}, fmt.Errorf("acpclient: unknown agent %q", name)
+	}
+	m.mu.Lock()
+	if m.closed {
+		m.mu.Unlock()
+		return ModelCatalog{}, ErrClosed
+	}
+	key := slotKey{name, cwd}
+	sl := m.slots[key]
+	if sl == nil {
+		sl = &slot{}
+		m.slots[key] = sl
+	}
+	m.mu.Unlock()
+
+	sl.mu.Lock()
+	defer sl.mu.Unlock()
+
+	if sl.sess == nil || !sl.sess.alive() {
+		if sl.sess != nil {
+			sl.sess.close()
+		}
+		s, err := m.startSession(ctx, spec, cwd, func(Event) {})
+		if err != nil {
+			return ModelCatalog{}, err
+		}
+		m.mu.Lock()
+		closed := m.closed
+		m.mu.Unlock()
+		if closed {
+			s.close()
+			return ModelCatalog{}, ErrClosed
+		}
+		sl.sess, sl.started = s, true
+	}
+	cat := sl.sess.catalog
+	if cat.Current == "" && sl.sess.activeModel != "" {
+		cat.Current = sl.sess.activeModel
+	}
+	cat.Models = append([]ModelChoice(nil), cat.Models...)
+	cat.ThoughtLevels = append([]string(nil), cat.ThoughtLevels...)
+	return cat, nil
 }
 
 // Close terminates every agent process. It is safe to call more than once.
@@ -293,10 +384,13 @@ func (m *Manager) startSession(ctx context.Context, spec AgentSpec, cwd string, 
 		return fail("session/new", err)
 	}
 	s.id = newResp.SessionId
+	s.updateCatalog(newResp.ConfigOptions)
 
 	if spec.Model != "" {
 		if merr := s.setModel(sctx, spec.Model); merr != nil {
 			onEvent(Event{Kind: EventNotice, Text: fmt.Sprintf("could not set %s model %q: %v (using the agent's default)", spec.Name, spec.Model, merr)})
+		} else {
+			s.activeModel = spec.Model
 		}
 	}
 	m.opts.Logf("acp %s: session %s started in %s", spec.Name, s.id, cwd)
@@ -318,7 +412,8 @@ func (s *session) setModel(ctx context.Context, model string) error {
 				return errors.Join(err, ctx.Err())
 			}
 		}
-		_, err = s.conn.SetSessionConfigOption(ctx, acp.SetSessionConfigOptionRequest{
+		var resp acp.SetSessionConfigOptionResponse
+		resp, err = s.conn.SetSessionConfigOption(ctx, acp.SetSessionConfigOptionRequest{
 			ValueId: &acp.SetSessionConfigOptionValueId{
 				ConfigId:  "model",
 				SessionId: s.id,
@@ -326,6 +421,11 @@ func (s *session) setModel(ctx context.Context, model string) error {
 			},
 		})
 		if err == nil {
+			if len(resp.ConfigOptions) > 0 {
+				s.updateCatalog(resp.ConfigOptions)
+			} else if s.catalog.Current != "" {
+				s.catalog.Current = model
+			}
 			return nil
 		}
 		var re *acp.RequestError
@@ -336,6 +436,48 @@ func (s *session) setModel(ctx context.Context, model string) error {
 	return err
 }
 
+func (s *session) updateCatalog(opts []acp.SessionConfigOption) {
+	if len(opts) == 0 {
+		return
+	}
+	var cat ModelCatalog
+	for _, opt := range opts {
+		sel := opt.Select
+		if sel == nil {
+			continue
+		}
+		switch string(sel.Id) {
+		case "model":
+			cat.Current = string(sel.CurrentValue)
+			for _, o := range flattenSelectOptions(sel.Options) {
+				cat.Models = append(cat.Models, ModelChoice{ID: string(o.Value), Name: o.Name})
+			}
+		case "thought_level":
+			cat.ThoughtLevel = string(sel.CurrentValue)
+			for _, o := range flattenSelectOptions(sel.Options) {
+				cat.ThoughtLevels = append(cat.ThoughtLevels, string(o.Value))
+			}
+		}
+	}
+	if cat.Current != "" || len(cat.Models) > 0 {
+		s.catalog = cat
+	}
+}
+
+func flattenSelectOptions(opts acp.SessionConfigSelectOptions) []acp.SessionConfigSelectOption {
+	if opts.Ungrouped != nil {
+		return *opts.Ungrouped
+	}
+	if opts.Grouped != nil {
+		var out []acp.SessionConfigSelectOption
+		for _, g := range *opts.Grouped {
+			out = append(out, g.Options...)
+		}
+		return out
+	}
+	return nil
+}
+
 func isAuthRequired(err error) bool {
 	var re *acp.RequestError
 	return errors.As(err, &re) && re.Code == -32000
@@ -343,13 +485,15 @@ func isAuthRequired(err error) bool {
 
 // session is one live agent process with one ACP session.
 type session struct {
-	spec AgentSpec
-	cwd  string
-	proc *Proc
-	conn *acp.ClientSideConnection
-	id   acp.SessionId
-	perm PermissionFunc
-	logf func(string, ...any)
+	spec        AgentSpec
+	cwd         string
+	proc        *Proc
+	conn        *acp.ClientSideConnection
+	id          acp.SessionId
+	activeModel string       // guarded by slot.mu
+	catalog     ModelCatalog // guarded by slot.mu
+	perm        PermissionFunc
+	logf        func(string, ...any)
 
 	mu        sync.Mutex
 	sink      func(Event)

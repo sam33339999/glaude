@@ -2,7 +2,7 @@
 package: permissions
 import_path: internal/permissions
 layer: services
-generated_at: 2026-11-19T18:29:52Z
+generated_at: 2026-11-22T08:07:32Z
 source_files: [ask.go, checker.go, denial.go, filesystem.go, persist.go]
 ---
 
@@ -47,11 +47,11 @@ type Checker interface {
 - `fakeChecker` in `internal/tools/codemode/tool_test.go`
 
 **Exported type references (files that use types from this package):**
-- `AskRequest` → `internal/bootstrap/wire.go`, `internal/tui/init.go`, `internal/tui/model.go`, `internal/tui/permission_codemode_test.go` (test)
-- `AskResponse` → `internal/bootstrap/wire.go`, `internal/tui/init.go`, `internal/tui/model.go`, `internal/tui/permission_codemode_test.go` (test)
-- `Checker` → `internal/bootstrap/wire.go`, `internal/engine/engine.go`, `internal/engine/orchestration.go`, `internal/tools/codemode/tool.go`, `internal/tools/codemode/tool_test.go` (test) + 1 more
-- `CheckerConfig` → `internal/bootstrap/wire.go`
-- `PermissionRequest` → `internal/engine/btw_test.go` (test), `internal/engine/orchestration.go`, `internal/tools/codemode/bridge.go`, `internal/tools/codemode/tool_test.go` (test), `internal/tools/codemode/tool_v3_test.go` (test)
+- `AskRequest` → `internal/bootstrap/acp_test.go` (test), `internal/bootstrap/wire.go`, `internal/tui/init.go`, `internal/tui/model.go`, `internal/tui/permission_codemode_test.go` (test)
+- `AskResponse` → `internal/bootstrap/acp_test.go` (test), `internal/bootstrap/wire.go`, `internal/tui/init.go`, `internal/tui/model.go`, `internal/tui/permission_codemode_test.go` (test)
+- `Checker` → `internal/bootstrap/acp.go`, `internal/bootstrap/acp_test.go` (test), `internal/bootstrap/wire.go`, `internal/engine/engine.go`, `internal/engine/orchestration.go` + 3 more
+- `CheckerConfig` → `internal/bootstrap/acp_test.go` (test), `internal/bootstrap/wire.go`
+- `PermissionRequest` → `internal/bootstrap/acp.go`, `internal/engine/btw_test.go` (test), `internal/engine/orchestration.go`, `internal/tools/codemode/bridge.go`, `internal/tools/codemode/tool_test.go` (test) + 1 more
 - `PersistConfig` → `internal/bootstrap/wire.go`
 
 ## Dependencies

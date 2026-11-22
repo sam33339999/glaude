@@ -132,7 +132,35 @@ func (a *Agent) NewSession(_ context.Context, p acp.NewSessionRequest) (acp.NewS
 	a.cwds = append(a.cwds, p.Cwd)
 	id := acp.SessionId(fmt.Sprintf("s%d", a.newCount))
 	a.sessions[id] = 0
-	return acp.NewSessionResponse{SessionId: id}, nil
+	opts := acp.SessionConfigSelectOptionsUngrouped{
+		{Value: "m1", Name: "Model One"},
+		{Value: "gemini-4-argon", Name: "Gemini 4 Argon"},
+		{Value: "gemini-3.8-flash", Name: "Gemini 3.8 Flash"},
+	}
+	thoughts := acp.SessionConfigSelectOptionsUngrouped{
+		{Value: "low", Name: "Low"},
+		{Value: "medium", Name: "Medium"},
+		{Value: "high", Name: "High"},
+	}
+	return acp.NewSessionResponse{
+		SessionId: id,
+		ConfigOptions: []acp.SessionConfigOption{
+			{Select: &acp.SessionConfigOptionSelect{
+				Id:           "model",
+				Name:         "Model",
+				CurrentValue: "m1",
+				Options:      acp.SessionConfigSelectOptions{Ungrouped: &opts},
+				Type:         "select",
+			}},
+			{Select: &acp.SessionConfigOptionSelect{
+				Id:           "thought_level",
+				Name:         "Thinking Level",
+				CurrentValue: "high",
+				Options:      acp.SessionConfigSelectOptions{Ungrouped: &thoughts},
+				Type:         "select",
+			}},
+		},
+	}, nil
 }
 
 func (a *Agent) say(ctx context.Context, sid acp.SessionId, u acp.SessionUpdate) {

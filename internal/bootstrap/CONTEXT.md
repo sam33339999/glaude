@@ -2,7 +2,7 @@
 package: bootstrap
 import_path: internal/bootstrap
 layer: cli
-generated_at: 2026-11-21T09:43:04Z
+generated_at: 2026-11-22T08:07:32Z
 source_files: [acp.go, agents_cmd.go, auth.go, bootstrap.go, install_cmd.go, mcp.go, mcp_connect.go, mcp_health.go, mcp_help.go, mcp_list.go, mcp_parse.go, mcp_render.go, mcp_run.go, misc.go, modelswitch.go, plugin.go, plugin_help.go, plugin_install.go, plugin_marketplace.go, plugin_render.go, plugin_run.go, plugin_validate.go, root.go, run.go, session.go, setup.go, tiers.go, tools.go, update_cmd.go, wire.go]
 ---
 
@@ -13,7 +13,7 @@ source_files: [acp.go, agents_cmd.go, auth.go, bootstrap.go, install_cmd.go, mcp
 ## Structs
 
 - **AppContainer** — 20 fields: QueryEngine, AppStateStore, ToolRegistry, MCPPool, Settings, PermAskCh, PermRespCh, QuestionAskCh, ...
-- **ContainerOptions** — 8 fields: HomeDir, WorkingDir, ModelOverride, Verbose, Debug, DebugFile, Headless, ProviderClientFactory
+- **ContainerOptions** — 10 fields: HomeDir, WorkingDir, ModelOverride, Verbose, Debug, DebugFile, Headless, ProviderClientFactory, ...
 
 ## Functions
 
@@ -28,7 +28,7 @@ source_files: [acp.go, agents_cmd.go, auth.go, bootstrap.go, install_cmd.go, mcp
 
 ## Dependencies
 
-**Imports:** `internal/acpclient`, `internal/agentctx`, `internal/agenttype`, `internal/api`, `internal/codemode`, `internal/commands`, `internal/compact`, `internal/config`, `internal/coordinator`, `internal/engine`, `internal/hooks`, `internal/mcp`, `internal/memdir`, `internal/modeltier`, `internal/msgqueue`, `internal/oauth`, `internal/permissions`, `internal/session`, `internal/state`, `internal/tools`, `internal/tools/agent`, `internal/tools/codemode`, `internal/tools/fileops`, `internal/tools/interact`, `internal/tools/mcp`, `internal/tools/memory`, `internal/tools/misc`, `internal/tools/shell`, `internal/tools/tasks`, `internal/tools/web`, `internal/transcript`, `internal/tui`, `pkg/types`, `pkg/utils/fs`
+**Imports:** `internal/acpclient`, `internal/agentctx`, `internal/agenttype`, `internal/api`, `internal/codemode`, `internal/commands`, `internal/compact`, `internal/config`, `internal/coordinator`, `internal/engine`, `internal/hooks`, `internal/mcp`, `internal/memdir`, `internal/modeltier`, `internal/msgqueue`, `internal/oauth`, `internal/permissions`, `internal/session`, `internal/soul`, `internal/state`, `internal/tools`, `internal/tools/agent`, `internal/tools/codemode`, `internal/tools/fileops`, `internal/tools/interact`, `internal/tools/mcp`, `internal/tools/memory`, `internal/tools/misc`, `internal/tools/shell`, `internal/tools/tasks`, `internal/tools/web`, `internal/transcript`, `internal/tui`, `pkg/types`, `pkg/utils/fs`
 
 **Imported by:** `cmd/glaude`
 
@@ -116,3 +116,4 @@ source_files: [acp.go, agents_cmd.go, auth.go, bootstrap.go, install_cmd.go, mcp
 - **2026-11-19 `setupBackend`（`setup.go`）**：實作 `commands.SetupBackend`。現值**每次從全域 `settings.json` 重新讀**（不用合併後的設定，避免把專案層、環境變數或 OAuth token 預填並寫進全域檔；同一會話跑第二次 /setup 也看得到上一次的結果）。沿用的金鑰在這裡解析，不經過 TUI。寫 `config.toml` 用另外從磁碟載入的 Store，不動執行中那一個：等級和主腦一樣等重新啟動才生效。`Overrides()` 只回報來源與欄位名，不回顯值。`NeedsSetup` 取自 `resolveAPIKey` 是否回空字串。
 - **2026-11-20 /model 與派工凍結**：`modelSwitcher`（`modelswitch.go`）在 default（啟動時目標）與等級之間切換，存的是解析後的目標快照，之後 `/tier` 改綁定不影響主腦。不可用（未綁定、金鑰缺失、啟動後才加入的 provider）的目標不會被套用。派工時把當下主腦目標寫進 sub-agent params：inherit 完整凍結；別名或明確模型也凍結 client 與 max_tokens；fork 用快照的 client 與上限。`main:<模型>` 等級固定用啟動時的 client。主腦切到非啟動 provider 後，舊別名一律繼承主腦（不知道那裡有沒有 haiku 之類的模型）。
 - **2026-11-20 /btw --tier**：`modelSwitcher.TargetFor` 用與 /model 相同的解析取得目標（不切換主腦），經 `btwTargetFn` 注入 TUI。
+- **2026-11-22 ACP `agy` 內建與派工模型轉發**：`withACPDispatch` 改呼叫 `mgr.PromptWithModel(..., req.Model, ...)`，使 `Agent` 工具的 `model` 參數與 `/<agent> -m <model>` 都能切換外部 ACP session 的模型。

@@ -2,13 +2,13 @@
 package: mcp
 import_path: internal/mcp
 layer: services
-generated_at: 2026-11-18T07:56:44Z
-source_files: [adapter.go, client.go, jsonrpc.go, pool.go, transport.go, transport_ws.go]
+generated_at: 2026-11-22T08:07:32Z
+source_files: [adapter.go, client.go, jsonrpc.go, pool.go, transport.go, transport_ws.go, wake.go]
 ---
 
 # internal/mcp
 
-> Layer: **Services** · Files: 6 · Interfaces: 2 · Structs: 17 · Functions: 4
+> Layer: **Services** · Files: 7 · Interfaces: 2 · Structs: 17 · Functions: 5
 
 ## Interfaces
 
@@ -69,6 +69,7 @@ type Transport interface {
 - `NewPool() *Pool`
 - `NewTransport(t TransportType, cfg any) (Transport, error)`
 - `NormalizeToolName(name string) string`
+- `WakesAgent(method string) bool`
 
 ## Constants
 
@@ -110,6 +111,7 @@ type Transport interface {
 - `ServerConfig` → `internal/bootstrap/mcp_connect.go`, `internal/bootstrap/mcp_connect_test.go` (test), `internal/bootstrap/mcp_health.go`, `internal/commands/mcp_test.go` (test), `internal/tools/mcp/mcp_test.go` (test)
 - `ServerConnection` → `internal/bootstrap/mcp_connect_test.go` (test), `internal/commands/mcp.go`, `internal/commands/mcp_test.go` (test), `internal/tools/mcp/mcp.go`
 - `ServerInfo` → `internal/commands/mcp_test.go` (test)
+- `ServerNotificationHandler` → `internal/bootstrap/wire.go`
 - `StdioTransportConfig` → `internal/bootstrap/mcp_health.go`
 - `Transport` → `internal/bootstrap/mcp_connect_test.go` (test), `internal/bootstrap/mcp_health.go`, `internal/bootstrap/mcp_health_test.go` (test), `internal/commands/mcp_test.go` (test), `internal/tools/mcp/mcp_test.go` (test)
 

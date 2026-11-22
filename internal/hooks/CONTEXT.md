@@ -2,7 +2,7 @@
 package: hooks
 import_path: internal/hooks
 layer: infra
-generated_at: 2026-11-18T03:53:13Z
+generated_at: 2026-11-22T08:07:32Z
 source_files: [hooks.go]
 ---
 

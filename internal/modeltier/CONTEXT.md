@@ -2,7 +2,7 @@
 package: modeltier
 import_path: internal/modeltier
 layer: unknown
-generated_at: 2026-11-19T18:19:04Z
+generated_at: 2026-11-22T08:07:32Z
 source_files: [config.go, resolve.go, store.go]
 ---
 

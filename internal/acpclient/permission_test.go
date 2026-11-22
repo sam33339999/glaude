@@ -84,6 +84,31 @@ func TestMapToolCall_RealPayloads(t *testing.T) {
 			payload: `{"toolCallId":"g7","kind":"other","title":"image_gen"}`,
 			want:    map[string]any{"agent": "grok", "kind": "other", "title": "image_gen"},
 		},
+		{
+			name: "agy run_command", agent: "agy", tool: "Bash",
+			payload: `{"toolCallId":"a0","kind":"execute","title":"echo hello-agy-acp","rawInput":{"CommandLine":"echo hello-agy-acp","WaitMsBeforeAsync":5000,"toolSummary":"Echo test"}}`,
+			want:    map[string]any{"command": "echo hello-agy-acp"},
+		},
+		{
+			name: "agy edit_file", agent: "agy", tool: "Edit",
+			payload: `{"toolCallId":"a1","kind":"edit","title":"Edit /p/a.go","rawInput":{"Path":"/p/a.go","Target":"old","Replacement":"new"}}`,
+			want:    map[string]any{"file_path": "/p/a.go", "old_string": "old", "new_string": "new"},
+		},
+		{
+			name: "agy write_file", agent: "agy", tool: "Write",
+			payload: `{"toolCallId":"a2","kind":"edit","title":"Write /p/b.go","rawInput":{"Path":"/p/b.go","Content":"package b"}}`,
+			want:    map[string]any{"file_path": "/p/b.go", "content": "package b"},
+		},
+		{
+			name: "agy read_file", agent: "agy", tool: "Read",
+			payload: `{"toolCallId":"a3","kind":"read","title":"Read /p/a.go","rawInput":{"Path":"/p/a.go"}}`,
+			want:    map[string]any{"file_path": "/p/a.go"},
+		},
+		{
+			name: "agy grep_search", agent: "agy", tool: "Grep",
+			payload: `{"toolCallId":"a4","kind":"search","title":"Grep TODO","rawInput":{"Query":"TODO","SearchPath":"/p"}}`,
+			want:    map[string]any{"pattern": "TODO", "path": "/p"},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

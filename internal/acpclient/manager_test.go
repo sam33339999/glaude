@@ -379,3 +379,34 @@ func TestPickOption(t *testing.T) {
 		t.Error("empty options: want !ok")
 	}
 }
+
+func TestManager_PromptWithModel_ColdStartAndRuntimeSwitch(t *testing.T) {
+	ps := &pipeStarter{}
+	m := newTestManager(t, ps, nil)
+	ctx := promptCtx(t)
+
+	// Cold start with model override replaces spec.Model ("m1") in one call.
+	if _, err := m.PromptWithModel(ctx, "fake", "/w", "gemini-4-argon-medium", "echo:1", nil); err != nil {
+		t.Fatal(err)
+	}
+	// Same model on next turn does not re-send set_config_option.
+	if _, err := m.PromptWithModel(ctx, "fake", "/w", "gemini-4-argon-medium", "echo:2", nil); err != nil {
+		t.Fatal(err)
+	}
+	// Switching to another model mid-session sends set_config_option.
+	if _, err := m.PromptWithModel(ctx, "fake", "/w", "gemini-3.8-flash", "echo:3", nil); err != nil {
+		t.Fatal(err)
+	}
+	got := ps.agent(0).Models()
+	if len(got) != 2 || got[0] != "gemini-4-argon-medium" || got[1] != "gemini-3.8-flash" {
+		t.Fatalf("models = %v, want [gemini-4-argon-medium gemini-3.8-flash]", got)
+	}
+
+	cat, err := m.Models(ctx, "fake", "/w")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cat.Current != "gemini-3.8-flash" || len(cat.Models) != 3 || cat.ThoughtLevel != "high" || len(cat.ThoughtLevels) != 3 {
+		t.Fatalf("catalog = %+v", cat)
+	}
+}

@@ -2,13 +2,13 @@
 package: tui
 import_path: internal/tui
 layer: tui
-generated_at: 2026-11-20T14:06:37Z
-source_files: [agentcolors.go, bashmode.go, btw.go, clipboard_paste.go, cmds.go, completion.go, coordinator.go, init.go, input.go, keys.go, memstat.go, memstat_darwin.go, memstat_linux.go, memstat_other.go, memstat_windows.go, messagelist.go, messages.go, model.go, modelpicker.go, paste.go, paste_input.go, permissions.go, rendercache.go, resumepicker.go, setup_dialog.go, setupwizard.go, setupwizard_view.go, spinner.go, statusbar.go, styles.go, textwidth.go, theme.go, toolview.go, turntiming.go, update.go, view.go, welcome.go]
+generated_at: 2026-11-22T08:07:32Z
+source_files: [agentcolors.go, autorun.go, bashmode.go, btw.go, clipboard_paste.go, cmds.go, completion.go, coordinator.go, init.go, input.go, keys.go, memstat.go, memstat_darwin.go, memstat_linux.go, memstat_other.go, memstat_windows.go, messagelist.go, messages.go, model.go, modelpicker.go, paste.go, paste_input.go, permissions.go, rendercache.go, resumepicker.go, setup_dialog.go, setupwizard.go, setupwizard_view.go, spinner.go, statusbar.go, styles.go, textwidth.go, theme.go, toolview.go, turntiming.go, update.go, view.go, welcome.go]
 ---
 
 # internal/tui
 
-> Layer: **TUI** · Files: 37 · Interfaces: 0 · Structs: 38 · Functions: 6
+> Layer: **TUI** · Files: 38 · Interfaces: 0 · Structs: 38 · Functions: 6
 
 ## Structs
 
@@ -16,7 +16,7 @@ source_files: [agentcolors.go, bashmode.go, btw.go, clipboard_paste.go, cmds.go,
 - **AgentProgressMsg** — 3 fields: TaskID, Activity, Detail
 - **AgentStatusMsg** — 5 fields: TaskID, Status, Description, Result, Summary
 - **AgentTaskState** — 12 fields: ID, Name, AgentType, Description, Status, StartTime, ElapsedMs, OutputTokens, ...
-- **AppModel** — 83 fields
+- **AppModel** — 91 fields
 - **CommandResultMsg** — 2 fields: Text, IsError
 - **CompactDoneMsg** — 1 fields: Summary
 - **CoordinatorPanel** — 3 fields: Tasks, SelectedIndex, TaskOrder
@@ -32,7 +32,7 @@ source_files: [agentcolors.go, bashmode.go, btw.go, clipboard_paste.go, cmds.go,
 - **QuestionRequestMsg** — 4 fields: RequestID, Question, Options, RespFn
 - **SlashCommandMsg** — 2 fields: Name, Args
 - **SpinnerModel** — 4 fields
-- **StatusBar** — 12 fields
+- **StatusBar** — 13 fields
 - **StreamAssistantTurnMsg** — 2 fields: FinalMessage, Usage
 - **StreamDoneMsg** — 2 fields: FinalMessage, Usage
 - **StreamErrorMsg** — 1 fields: Err
@@ -55,7 +55,7 @@ source_files: [agentcolors.go, bashmode.go, btw.go, clipboard_paste.go, cmds.go,
 
 - `IsSlashCommand(text string) bool`
 - `MessageListView(messages []types.Message, width int, darkMode bool, theme Theme, mdRenderer *glamour.TermRenderer, expandedToolResults map[string]bool) string`
-- `New(qe engine.QueryEngine, appStore *state.AppStateStore, vimEnabled bool, dark bool, permAskCh <-chan permissions.AskRequest, permRespCh chan<- permissions.AskResponse, agentCoord tools.AgentCoordinator, agentEventCh <-chan coordinator.Event, mq *msgqueue.MessageQueue, qg *msgqueue.QueryGuard, memoryStore *memdir.MemoryStore, mcpPool commands.MCPServerLister, tiers commands.TierManager, setup commands.SetupBackend, models commands.ModelSwitcher, btwTarget func(ref string) (engine.MainTarget, error), rec *transcript.Recorder, questionAskCh <-chan types.QuestionRequest, questionRespCh chan<- types.QuestionResponse) tea.Model`
+- `New(qe engine.QueryEngine, appStore *state.AppStateStore, vimEnabled bool, dark bool, permAskCh <-chan permissions.AskRequest, permRespCh chan<- permissions.AskResponse, agentCoord tools.AgentCoordinator, agentEventCh <-chan coordinator.Event, mq *msgqueue.MessageQueue, qg *msgqueue.QueryGuard, memoryStore *memdir.MemoryStore, mcpPool commands.MCPServerLister, tiers commands.TierManager, setup commands.SetupBackend, models commands.ModelSwitcher, btwTarget func(ref string) (engine.MainTarget, error), rec *transcript.Recorder, questionAskCh <-chan types.QuestionRequest, questionRespCh chan<- types.QuestionResponse, extraCommands ...func(*commands.Registry)) tea.Model`
 - `NewAgentColorManager() *AgentColorManager`
 - `NewInput(vimEnabled bool) InputModel`
 - `NewWelcomeHeader(model string, cwd string) WelcomeHeader`
@@ -82,7 +82,7 @@ source_files: [agentcolors.go, bashmode.go, btw.go, clipboard_paste.go, cmds.go,
 
 ## Dependencies
 
-**Imports:** `internal/agenttype`, `internal/clipboard`, `internal/commands`, `internal/compact`, `internal/coordinator`, `internal/engine`, `internal/memdir`, `internal/msgqueue`, `internal/permissions`, `internal/state`, `internal/tools`, `internal/tools/shell`, `internal/transcript`, `pkg/types`
+**Imports:** `internal/agenttype`, `internal/api`, `internal/clipboard`, `internal/commands`, `internal/compact`, `internal/coordinator`, `internal/engine`, `internal/memdir`, `internal/msgqueue`, `internal/permissions`, `internal/soul`, `internal/state`, `internal/tools`, `internal/tools/shell`, `internal/transcript`, `pkg/types`
 
 **Imported by:** `internal/bootstrap`
 

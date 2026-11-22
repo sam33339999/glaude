@@ -50,7 +50,7 @@ func MapToolCall(agent string, tc acp.ToolCallUpdate) PermissionQuery {
 			}
 		}
 	}
-	path := firstString(raw, "file_path", "filePath", "filepath", "path")
+	path := firstString(raw, "file_path", "filePath", "filepath", "path", "Path", "SearchPath", "SearchDirectory")
 	if path == "" && diff != nil {
 		path = diff.Path
 	}
@@ -68,13 +68,13 @@ func MapToolCall(agent string, tc acp.ToolCallUpdate) PermissionQuery {
 
 	switch kind {
 	case acp.ToolKindExecute:
-		if cmd := firstString(raw, "command", "cmd"); cmd != "" {
+		if cmd := firstString(raw, "command", "cmd", "CommandLine"); cmd != "" {
 			return set("Bash", map[string]any{"command": cmd})
 		}
 	case acp.ToolKindEdit, acp.ToolKindDelete, acp.ToolKindMove:
 		if path != "" {
-			oldText := firstString(raw, "old_string", "oldString")
-			newText := firstString(raw, "new_string", "newString", "content")
+			oldText := firstString(raw, "old_string", "oldString", "Target")
+			newText := firstString(raw, "new_string", "newString", "content", "Replacement")
 			if diff != nil {
 				if diff.OldText == nil {
 					return set("Write", map[string]any{"file_path": path, "content": diff.NewText})
@@ -86,6 +86,11 @@ func MapToolCall(agent string, tc acp.ToolCallUpdate) PermissionQuery {
 					newText = diff.NewText
 				}
 			}
+			if oldText == "" && newText == "" {
+				if content := firstString(raw, "Content"); content != "" {
+					return set("Write", map[string]any{"file_path": path, "content": content})
+				}
+			}
 			return set("Edit", map[string]any{"file_path": path, "old_string": oldText, "new_string": newText})
 		}
 	case acp.ToolKindRead:
@@ -93,7 +98,7 @@ func MapToolCall(agent string, tc acp.ToolCallUpdate) PermissionQuery {
 			return set("Read", map[string]any{"file_path": path})
 		}
 	case acp.ToolKindSearch:
-		if pattern := firstString(raw, "pattern", "query", "regex"); pattern != "" {
+		if pattern := firstString(raw, "pattern", "query", "regex", "Query", "Pattern"); pattern != "" {
 			in := map[string]any{"pattern": pattern}
 			if path != "" {
 				in["path"] = path
@@ -101,7 +106,7 @@ func MapToolCall(agent string, tc acp.ToolCallUpdate) PermissionQuery {
 			return set("Grep", in)
 		}
 	case acp.ToolKindFetch:
-		if url := firstString(raw, "url"); url != "" {
+		if url := firstString(raw, "url", "Url", "URL"); url != "" {
 			return set("WebFetch", map[string]any{"url": url, "prompt": q.Title})
 		}
 	}

@@ -2,7 +2,7 @@
 package: interact
 import_path: internal/tools/interact
 layer: tools
-generated_at: 2026-11-19T18:29:52Z
+generated_at: 2026-11-22T08:07:32Z
 source_files: [doc.go, interact.go, worktree.go]
 ---
 

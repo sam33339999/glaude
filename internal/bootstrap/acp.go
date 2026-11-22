@@ -132,7 +132,7 @@ func withACPDispatch(mgr *acpclient.Manager, store *state.AppStateStore, onProgr
 			text := strings.Join(turns, "\n\n")
 			turns = nil
 			cwd := store.GetState().WorkingDir
-			res, err := mgr.Prompt(ctx, req.SubagentType, cwd, text, acpProgress(emit))
+			res, err := mgr.PromptWithModel(ctx, req.SubagentType, cwd, req.Model, text, acpProgress(emit))
 			if res.Restarted {
 				notes = append(notes, fmt.Sprintf("[note: the %s process had exited; this turn ran in a new session without earlier context]", req.SubagentType))
 			}
@@ -213,20 +213,73 @@ func externalAgentCommands(c *AppContainer) func(*commands.Registry) {
 	if c == nil || c.ACPAgents == nil || c.AgentCoordinator == nil {
 		return nil
 	}
-	names := c.ACPAgents.Names()
+	mgr := c.ACPAgents
+	store := c.AppStateStore
+	names := mgr.Names()
 	cmds := make([]commands.ExternalAgentCommand, 0, len(names))
 	for _, n := range names {
-		spec, _ := c.ACPAgents.Spec(n)
-		cmds = append(cmds, commands.ExternalAgentCommand{Name: n, Description: spec.Description})
+		name := n
+		spec, _ := mgr.Spec(name)
+		cmds = append(cmds, commands.ExternalAgentCommand{
+			Name:        name,
+			Description: spec.Description,
+			ListModels: func(cwd string) (string, error) {
+				if cwd == "" && store != nil {
+					cwd = store.GetState().WorkingDir
+				}
+				cat, err := mgr.Models(context.Background(), name, cwd)
+				if err != nil {
+					return "", err
+				}
+				return formatACPModelCatalog(name, cat), nil
+			},
+		})
 	}
 	coord := c.AgentCoordinator
-	spawn := func(name, task string) (string, error) {
+	spawn := func(name, model, task string) (string, error) {
 		return coord.SpawnAgent(context.Background(), tools.AgentSpawnRequest{
 			Description: "/" + name + ": " + clipRunes(task, 80),
 			Prompt:      task,
 			AgentType:   name,
+			Model:       model,
 			Background:  true,
 		})
 	}
 	return func(r *commands.Registry) { commands.RegisterExternalAgents(r, cmds, spawn) }
+}
+
+func formatACPModelCatalog(name string, cat acpclient.ModelCatalog) string {
+	if len(cat.Models) == 0 && cat.Current == "" {
+		return fmt.Sprintf("%s did not report selectable models.", name)
+	}
+	var b strings.Builder
+	cur := cat.Current
+	if cur == "" {
+		cur = "(default)"
+	}
+	if cat.ThoughtLevel != "" {
+		fmt.Fprintf(&b, "%s current model: %s (thinking: %s)\n", name, cur, cat.ThoughtLevel)
+	} else {
+		fmt.Fprintf(&b, "%s current model: %s\n", name, cur)
+	}
+	if len(cat.Models) > 0 {
+		b.WriteString("Available models:\n")
+		for _, m := range cat.Models {
+			mark := "  "
+			if m.ID == cat.Current {
+				mark = "* "
+			}
+			if m.Name != "" && m.Name != m.ID {
+				fmt.Fprintf(&b, "%s%-32s %s\n", mark, m.ID, m.Name)
+			} else {
+				fmt.Fprintf(&b, "%s%s\n", mark, m.ID)
+			}
+		}
+	}
+	if len(cat.ThoughtLevels) > 0 {
+		fmt.Fprintf(&b, "Thinking levels (append -<level> to model ID, e.g. %s-%s): %s\n",
+			cat.Current, cat.ThoughtLevels[0], strings.Join(cat.ThoughtLevels, ", "))
+	}
+	fmt.Fprintf(&b, "Use: /%s -m <model> <task>  or set acpAgents.%s.model in settings.json", name, name)
+	return b.String()
 }

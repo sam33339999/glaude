@@ -2,7 +2,7 @@
 package: agenttype
 import_path: internal/agenttype
 layer: infra
-generated_at: 2026-11-19T18:29:52Z
+generated_at: 2026-11-22T08:07:32Z
 source_files: [agenttype.go, builtins.go, loader.go, prompts.go, registry.go, tasktype.go]
 ---
 
@@ -53,7 +53,7 @@ source_files: [agenttype.go, builtins.go, loader.go, prompts.go, registry.go, ta
 
 **Exported type references (files that use types from this package):**
 - `AgentProfile` → `internal/bootstrap/agents_cmd.go`, `internal/bootstrap/wire.go`
-- `Registry` → `internal/bootstrap/wire.go`, `internal/bootstrap/wire_fork_test.go` (test)
+- `Registry` → `internal/bootstrap/acp.go`, `internal/bootstrap/wire.go`, `internal/bootstrap/wire_fork_test.go` (test)
 - `ToolFilter` → `internal/bootstrap/wire.go`
 
 ## Dependencies

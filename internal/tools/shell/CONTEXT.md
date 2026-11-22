@@ -2,7 +2,7 @@
 package: shell
 import_path: internal/tools/shell
 layer: tools
-generated_at: 2026-11-20T05:24:51Z
+generated_at: 2026-11-22T08:07:32Z
 source_files: [bash.go, doc.go, matcher.go, run.go, security.go]
 ---
 
