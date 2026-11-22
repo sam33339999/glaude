@@ -437,3 +437,72 @@ func darwinScriptPath(t *testing.T, args []string) string {
 	t.Fatalf("osascript args missing POSIX path: %q", args)
 	return ""
 }
+
+type inputCall struct {
+	stdin string
+	name  string
+	args  []string
+}
+
+func recordInput(calls *[]inputCall) func(context.Context, string, string, ...string) error {
+	return func(_ context.Context, stdin, name string, args ...string) error {
+		*calls = append(*calls, inputCall{stdin: stdin, name: name, args: args})
+		return nil
+	}
+}
+
+func TestWriteText_Darwin(t *testing.T) {
+	var calls []inputCall
+	r := &Reader{GOOS: "darwin", RunInput: recordInput(&calls)}
+	if err := r.WriteText(context.Background(), "hi\n世界"); err != nil {
+		t.Fatalf("WriteText: %v", err)
+	}
+	if len(calls) != 1 || calls[0].name != "pbcopy" || len(calls[0].args) != 0 || calls[0].stdin != "hi\n世界" {
+		t.Fatalf("calls = %+v", calls)
+	}
+}
+
+func TestWriteText_Wayland(t *testing.T) {
+	var calls []inputCall
+	r := linuxReader(true, "wl-copy", nil)
+	r.RunInput = recordInput(&calls)
+	if err := r.WriteText(context.Background(), "x"); err != nil {
+		t.Fatalf("WriteText: %v", err)
+	}
+	if len(calls) != 1 || calls[0].name != "wl-copy" {
+		t.Fatalf("calls = %+v", calls)
+	}
+}
+
+func TestWriteText_X11(t *testing.T) {
+	var calls []inputCall
+	r := linuxReader(false, "xclip", nil)
+	r.RunInput = recordInput(&calls)
+	if err := r.WriteText(context.Background(), "x"); err != nil {
+		t.Fatalf("WriteText: %v", err)
+	}
+	if len(calls) != 1 || calls[0].name != "xclip" || strings.Join(calls[0].args, " ") != "-selection clipboard" {
+		t.Fatalf("calls = %+v", calls)
+	}
+}
+
+func TestWriteText_MissingTool(t *testing.T) {
+	var calls []inputCall
+	r := linuxReader(true, "none", nil)
+	r.RunInput = recordInput(&calls)
+	err := r.WriteText(context.Background(), "x")
+	var missing *MissingToolError
+	if !errors.As(err, &missing) {
+		t.Fatalf("err = %v, want MissingToolError", err)
+	}
+	if len(calls) != 0 {
+		t.Fatalf("unexpected calls %+v", calls)
+	}
+}
+
+func TestWriteText_OtherPlatform(t *testing.T) {
+	r := &Reader{GOOS: "windows"}
+	if err := r.WriteText(context.Background(), "x"); !errors.Is(err, ErrUnsupported) {
+		t.Fatalf("err = %v, want ErrUnsupported", err)
+	}
+}
