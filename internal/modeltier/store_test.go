@@ -161,6 +161,12 @@ func TestStore_ProvidersKeyPresence(t *testing.T) {
 	if got["openrouter"].KeyPresent {
 		t.Errorf("openrouter = %+v, want KeyPresent false", got["openrouter"])
 	}
+	if m := got["openrouter"].Models; len(m) != 1 || m[0] != "qwen/qwen3.8-27b" {
+		t.Errorf("openrouter models = %v, want the declared model", m)
+	}
+	if len(got["zai"].Models) != 0 || len(list[0].Models) != 0 {
+		t.Errorf("zai/main models = %v / %v, want none", got["zai"].Models, list[0].Models)
+	}
 }
 
 func TestStore_ListIncludesDefaultTiers(t *testing.T) {

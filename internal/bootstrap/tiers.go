@@ -1,7 +1,9 @@
 package bootstrap
 
 import (
+	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 
@@ -169,11 +171,44 @@ func engineDebugLogf(opts ContainerOptions) func(string, ...any) {
 	}
 }
 
+// tierManager is the /tier view handed to the TUI: the tier store plus a
+// model lister for the picker. mainCfg is the startup client's config (the
+// "main" provider); its key is only used to list models.
+type tierManager struct {
+	*modeltier.Store
+	mainCfg    api.ClientConfig
+	httpClient *http.Client // nil → http.DefaultClient
+}
+
+var _ commands.TierModelLister = (*tierManager)(nil)
+
+// ListProviderModels implements commands.TierModelLister.
+func (t *tierManager) ListProviderModels(ctx context.Context, providerID string) ([]commands.SetupModel, error) {
+	cfg := t.mainCfg
+	if providerID != modeltier.MainProviderID {
+		p, ok := t.Provider(providerID)
+		if !ok {
+			return nil, fmt.Errorf("provider %q is not registered", providerID)
+		}
+		key := ""
+		if p.APIKeyEnv != "" {
+			if key = os.Getenv(p.APIKeyEnv); key == "" {
+				return nil, fmt.Errorf("environment variable %s is not set", p.APIKeyEnv)
+			}
+		}
+		cfg = api.ClientConfig{Provider: api.ProviderOpenAI, BaseURL: p.BaseURL, APIKey: key}
+		if p.Format == modeltier.FormatAnthropic {
+			cfg.Provider = api.ProviderDirect
+		}
+	}
+	return listSetupModels(ctx, cfg, t.httpClient)
+}
+
 // tiersOrNil converts a possibly-nil *modeltier.Store into the TUI's
 // TierManager without producing a typed-nil interface.
-func tiersOrNil(s *modeltier.Store) commands.TierManager {
+func tiersOrNil(s *modeltier.Store, mainCfg api.ClientConfig) commands.TierManager {
 	if s == nil {
 		return nil
 	}
-	return s
+	return &tierManager{Store: s, mainCfg: mainCfg}
 }

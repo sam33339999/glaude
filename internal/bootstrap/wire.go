@@ -112,6 +112,9 @@ type AppContainer struct {
 	MemoryStore *memdir.MemoryStore
 	// Tiers is the ~/.glaude/config.toml tier table (never nil).
 	Tiers *modeltier.Store
+	// MainClientConfig is the startup client's config; /tier uses it to list
+	// the main provider's models.
+	MainClientConfig api.ClientConfig
 	// Setup serves the /setup wizard (never nil).
 	Setup commands.SetupBackend
 	// ModelSwitcher serves /model (never nil).
@@ -306,6 +309,7 @@ func BuildContainer(opts ContainerOptions) (*AppContainer, error) {
 		AgentProfiles:    agentProfiles,
 		MemoryStore:      memoryStore,
 		Tiers:            router.store,
+		MainClientConfig: mainClientConfig(settings, apiKey, opts),
 		Setup:            newSetupBackend(opts.HomeDir, settings, apiKey == "", hasOAuthToken()),
 		ModelSwitcher:    newModelSwitcher(eng, router, store, eng.MainTarget(), mainWireFormat(settings)),
 		ACPAgents:        acpAgents,
@@ -1083,6 +1087,12 @@ func resolveAPIKey(settings *config.LayeredSettings) (string, error) {
 
 // buildAPIClient constructs the api.Client from merged settings.
 func buildAPIClient(settings *config.LayeredSettings, apiKey string, opts ContainerOptions) (api.Client, error) {
+	return api.NewClient(mainClientConfig(settings, apiKey, opts), nil)
+}
+
+// mainClientConfig is the startup (main loop) client's config from merged
+// settings.
+func mainClientConfig(settings *config.LayeredSettings, apiKey string, opts ContainerOptions) api.ClientConfig {
 	cfg := api.ClientConfig{
 		Provider:  api.ProviderDirect,
 		APIKey:    apiKey,
@@ -1106,7 +1116,7 @@ func buildAPIClient(settings *config.LayeredSettings, apiKey string, opts Contai
 		}
 		// Bedrock/Vertex detection via env is handled inside api.NewClient.
 	}
-	return api.NewClient(cfg, nil)
+	return cfg
 }
 
 // resolveProviderName returns the active provider name, defaulting to anthropic.

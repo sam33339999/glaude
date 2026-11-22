@@ -250,7 +250,7 @@ func runInteractive(f *rootFlags, opts ContainerOptions) error {
 		container.QueryGuard,
 		container.MemoryStore,
 		container.MCPPool,
-		tiersOrNil(container.Tiers),
+		tiersOrNil(container.Tiers, container.MainClientConfig),
 		container.Setup,
 		container.ModelSwitcher,
 		btwTargetFn(container.ModelSwitcher),

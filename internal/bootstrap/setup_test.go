@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/tunsuy/glaude/internal/api"
 	"github.com/tunsuy/glaude/internal/commands"
 	"github.com/tunsuy/glaude/internal/config"
 	"github.com/tunsuy/glaude/internal/modeltier"
@@ -247,5 +248,41 @@ func TestSetupBackend_Overrides(t *testing.T) {
 	}
 	if strings.Contains(got, "managed\n") || strings.Contains(got, "\"managed\"") {
 		t.Error("override text must not echo the policy value")
+	}
+}
+
+func TestTierManager_ListProviderModels(t *testing.T) {
+	mainSrv := modelsServer(t, "mk")
+	provSrv := modelsServer(t, "pk")
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	cfg := "[providers.or]\nformat = \"openai\"\nbase_url = \"" + provSrv.URL + "\"\napi_key_env = \"TIER_TEST_OR_KEY\"\n" +
+		"[providers.nokey]\nformat = \"openai\"\nbase_url = \"http://unused\"\napi_key_env = \"TIER_TEST_MISSING_KEY\"\n"
+	if err := os.WriteFile(path, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("TIER_TEST_OR_KEY", "pk")
+	t.Setenv("TIER_TEST_MISSING_KEY", "")
+	store, warnings := modeltier.Load(path)
+	if len(warnings) != 0 {
+		t.Fatalf("warnings: %v", warnings)
+	}
+	tm := tiersOrNil(store, api.ClientConfig{Provider: api.ProviderOpenAI, BaseURL: mainSrv.URL, APIKey: "mk"}).(*tierManager)
+	ctx := context.Background()
+
+	if ms, err := tm.ListProviderModels(ctx, modeltier.MainProviderID); err != nil || len(ms) != 2 {
+		t.Errorf("main: models=%v err=%v", ms, err)
+	}
+	if ms, err := tm.ListProviderModels(ctx, "or"); err != nil || len(ms) != 2 || ms[1].ContextWindow != 32768 {
+		t.Errorf("or: models=%v err=%v", ms, err)
+	}
+	if _, err := tm.ListProviderModels(ctx, "nokey"); err == nil || !strings.Contains(err.Error(), "TIER_TEST_MISSING_KEY") {
+		t.Errorf("nokey: err=%v, want missing env var", err)
+	}
+	if _, err := tm.ListProviderModels(ctx, "ghost"); err == nil || !strings.Contains(err.Error(), "not registered") {
+		t.Errorf("ghost: err=%v", err)
+	}
+	if tiersOrNil(nil, api.ClientConfig{}) != nil {
+		t.Error("nil store must give a nil interface")
 	}
 }

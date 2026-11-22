@@ -23,6 +23,9 @@ func (f *fakeTiers) Providers() []modeltier.ProviderStatus { return f.providers 
 func (f *fakeTiers) MainContextWindow() int                { return f.window }
 func (f *fakeTiers) Warnings() []string                    { return f.warnings }
 func (f *fakeTiers) Unbind(tier string) error              { f.unbound = append(f.unbound, tier); return f.bindErr }
+func (f *fakeTiers) BindWithLimits(tier, provider, model string, _ int) error {
+	return f.Bind(tier, provider, model)
+}
 func (f *fakeTiers) Bind(tier, provider, model string) error {
 	f.bound = append(f.bound, tier+" "+provider+" "+model)
 	return f.bindErr
@@ -55,12 +58,17 @@ func assertWords(t *testing.T, text string, words ...string) {
 	}
 }
 
-func TestTier_ListShowsBindingsAndProviders(t *testing.T) {
+func TestTier_NoArgsOpensPicker(t *testing.T) {
 	res := runTier(newFakeTiers(), "")
-	if res.Display != DisplayMessage {
-		t.Errorf("Display = %v, want DisplayMessage", res.Display)
+	if res.OpenDialog != "tier" || res.Display != DisplayNone {
+		t.Errorf("result = %+v, want OpenDialog tier", res)
 	}
-	assertWords(t, res.Text, "lite", "zai:glm-5.3-flash", "max", "unbound", "ZAI_API_KEY", "missing", "main", "262144")
+}
+
+func TestTier_UsageHasNoAngleBrackets(t *testing.T) {
+	if strings.ContainsAny(tierUsage, "<>") {
+		t.Errorf("usage %q uses <...>, which markdown rendering drops", tierUsage)
+	}
 }
 
 func TestTier_Bind(t *testing.T) {
@@ -115,13 +123,3 @@ func TestTier_NoteCommentsLost(t *testing.T) {
 }
 
 var _ TierManager = (*modeltier.Store)(nil)
-
-func TestTier_ListShowsWarnings(t *testing.T) {
-	f := newFakeTiers()
-	f.warnings = []string{"config.toml: tiers.lite: provider \"nope\" is not registered"}
-	res := runTier(f, "")
-	assertWords(t, res.Text, "Warnings", "nope")
-	if strings.Index(res.Text, "Warnings") > strings.Index(res.Text, "Tiers:") {
-		t.Error("warnings must be listed before the tiers")
-	}
-}

@@ -220,6 +220,10 @@ func (m AppModel) renderActiveDialog() string {
 		if m.setupWizard != nil {
 			return m.setupWizard.view(m.dialogWidth(), m.resumePickerMaxHeight(), m.theme)
 		}
+	case dialogTier:
+		if m.tierPicker != nil {
+			return m.tierPicker.view(m.dialogWidth(), m.resumePickerMaxHeight(), m.theme)
+		}
 	}
 	return ""
 }

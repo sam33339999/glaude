@@ -36,6 +36,7 @@ const (
 	dialogSetup                   // /setup first-run wizard
 	dialogModelPicker             // /model menu
 	dialogModelConfirm            // /model cache-invalidation confirmation
+	dialogTier                    // /tier binding picker
 )
 
 // questionState holds the active AskUserQuestion dialog (BF-08): the question,
@@ -166,6 +167,10 @@ type AppModel struct {
 	// setupSeq carries the wizard's request counter across /setup sessions,
 	// so a request abandoned in a closed wizard can never match a new one.
 	setupSeq int
+	// tierPicker is the /tier picker while dialogTier is open; tierSeq
+	// numbers picker sessions so results for a closed one are dropped.
+	tierPicker *tierPicker
+	tierSeq    int
 	// modelSwitcher serves /model (may be nil: legacy SetModel path);
 	// modelPicker / pendingModel hold the menu and the switch awaiting y/n.
 	modelSwitcher commands.ModelSwitcher
