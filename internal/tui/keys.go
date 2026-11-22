@@ -14,6 +14,11 @@ import (
 
 // handleKey dispatches keyboard events based on the active dialog and loading state.
 func (m AppModel) handleKey(key tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	// Esc first dismisses a mouse selection, and does nothing else.
+	if key.Code == tea.KeyEsc && m.sel.active && m.activeDialog == dialogNone {
+		m.sel = selectionState{}
+		return m, nil
+	}
 	// --- Global shortcuts that work in all states ---
 	// v2: ctrl+letter arrives as Code=letter with ModCtrl (no KeyCtrlX constants).
 	if key.Mod.Contains(tea.ModCtrl) {

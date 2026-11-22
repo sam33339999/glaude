@@ -126,6 +126,15 @@ type AppModel struct {
 	pasteNotice string
 	// clip reads the system clipboard. newAppModel sets clipboard.New; tests replace it.
 	clip clipboardReader
+	// clipWriter writes copied text natively (alongside OSC 52). Tests replace it.
+	clipWriter clipboardWriter
+
+	// --- Mouse selection ---
+	sel          selectionState
+	contentLines []string       // viewport content split into lines (for selection)
+	codeRefs     []codeBlockRef // code block "[copy]" headers, lines into contentLines
+	lastClickAt  time.Time
+	lastClickPos contentPos
 
 	// --- Style ---
 	theme    Theme
@@ -299,6 +308,7 @@ func newAppModel(
 	if !dark {
 		t = DefaultLightTheme
 	}
+	clip := clipboard.New()
 
 	m := AppModel{
 		theme:               t,
@@ -321,7 +331,8 @@ func newAppModel(
 		spinner:             newSpinner(),
 		input:               NewInput(vimEnabled),
 		pastes:              newPasteStore(),
-		clip:                clipboard.New(),
+		clip:                clip,
+		clipWriter:          clip,
 		lastTickTime:        time.Now(),
 		expandedToolResults: make(map[string]bool),
 		surfacedMemories:    make(map[string]bool),
