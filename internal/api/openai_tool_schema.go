@@ -1,9 +1,32 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"reflect"
 )
+
+// nonSchemaKeywords hold data values or name lists, not subschemas; their
+// subtrees are never rewritten even if they contain an "items" key.
+var nonSchemaKeywords = map[string]bool{
+	"default":           true,
+	"const":             true,
+	"enum":              true,
+	"examples":          true,
+	"dependencies":      true, // draft-07: values may be string arrays
+	"dependentRequired": true,
+	"required":          true,
+}
+
+// nameMapKeywords map arbitrary user-chosen names to subschemas; keys inside
+// them are names, not keywords, so a property called "enum" still recurses.
+var nameMapKeywords = map[string]bool{
+	"properties":        true,
+	"patternProperties": true,
+	"definitions":       true,
+	"$defs":             true,
+	"dependentSchemas":  true,
+}
 
 // normalizeOpenAIToolSchema rewrites JSON Schema constructs that strict
 // OpenAI-compatible providers reject in function parameters. Currently it
@@ -14,8 +37,11 @@ import (
 //   - positions differ        → {"anyOf": [distinct schemas...]}
 //   - empty array             → "items" removed
 //
-// "additionalItems" is dropped alongside; when it was false and no maxItems
-// is set, maxItems is set to the tuple length so the length bound survives.
+// "additionalItems" is dropped alongside: a schema value joins the anyOf, and
+// false sets maxItems to the tuple length (unless maxItems is set) so the
+// length bound survives. An absent additionalItems (default true) becomes
+// slightly stricter — extra elements must match the collapsed schema — which
+// is acceptable for a hint to the model.
 //
 // z.ai (GLM) returns HTTP 400 code 1210 "Invalid API parameter" for
 // array-valued "items", failing every request once an MCP tool uses it.
@@ -26,10 +52,12 @@ func normalizeOpenAIToolSchema(schema json.RawMessage) json.RawMessage {
 		return schema
 	}
 	var v any
-	if err := json.Unmarshal(schema, &v); err != nil {
+	dec := json.NewDecoder(bytes.NewReader(schema))
+	dec.UseNumber() // keep large integers exact
+	if err := dec.Decode(&v); err != nil {
 		return schema
 	}
-	if !collapseTupleItems(v) {
+	if !collapseTupleItems(v, false) {
 		return schema
 	}
 	out, err := json.Marshal(v)
@@ -40,13 +68,27 @@ func normalizeOpenAIToolSchema(schema json.RawMessage) json.RawMessage {
 }
 
 // collapseTupleItems walks v in place and reports whether anything changed.
-func collapseTupleItems(v any) bool {
+// nameMap is true when v is the value of a name→schema keyword such as
+// "properties": its keys are names and every value is a schema.
+func collapseTupleItems(v any, nameMap bool) bool {
 	changed := false
 	switch n := v.(type) {
 	case map[string]any:
+		if nameMap {
+			for _, child := range n {
+				if collapseTupleItems(child, false) {
+					changed = true
+				}
+			}
+			return changed
+		}
 		if tuple, ok := n["items"].([]any); ok {
 			changed = true
-			switch distinct := distinctSchemas(tuple); len(distinct) {
+			positions := tuple
+			if extra, ok := n["additionalItems"].(map[string]any); ok {
+				positions = append(append([]any{}, tuple...), extra)
+			}
+			switch distinct := distinctSchemas(positions); len(distinct) {
 			case 0:
 				delete(n, "items")
 			case 1:
@@ -61,14 +103,17 @@ func collapseTupleItems(v any) bool {
 			}
 			delete(n, "additionalItems")
 		}
-		for _, child := range n {
-			if collapseTupleItems(child) {
+		for k, child := range n {
+			if nonSchemaKeywords[k] {
+				continue
+			}
+			if collapseTupleItems(child, nameMapKeywords[k]) {
 				changed = true
 			}
 		}
 	case []any:
 		for _, child := range n {
-			if collapseTupleItems(child) {
+			if collapseTupleItems(child, false) {
 				changed = true
 			}
 		}

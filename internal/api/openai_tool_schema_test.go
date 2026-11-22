@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"reflect"
 	"testing"
@@ -48,6 +49,30 @@ func TestNormalizeOpenAIToolSchema(t *testing.T) {
 			in:   `{"type":"object","properties":{"items":{"type":"array","items":{"type":"string"}}}}`,
 		},
 		{
+			name: "data and name-list keywords are not rewritten",
+			in:   `{"type":"object","properties":{"items":{"type":"array","items":{"type":"string"}}},"dependencies":{"items":["count"]},"default":{"items":["a","b"]},"enum":[{"items":[1]}],"examples":[{"items":[]}]}`,
+		},
+		{
+			name: "rewrite elsewhere leaves data keywords intact",
+			in:   `{"type":"object","default":{"items":["a","b"]},"properties":{"c":{"type":"array","items":[{"type":"number"}]}}}`,
+			want: `{"type":"object","default":{"items":["a","b"]},"properties":{"c":{"type":"array","items":{"type":"number"}}}}`,
+		},
+		{
+			name: "additionalItems schema joins anyOf",
+			in:   `{"type":"array","items":[{"type":"string"}],"additionalItems":{"type":"integer"}}`,
+			want: `{"type":"array","items":{"anyOf":[{"type":"string"},{"type":"integer"}]}}`,
+		},
+		{
+			name: "large integers keep precision",
+			in:   `{"type":"array","maximum":9007199254740993,"items":[{"type":"number"}]}`,
+			want: `{"type":"array","maximum":9007199254740993,"items":{"type":"number"}}`,
+		},
+		{
+			name: "property named like a data keyword still recurses",
+			in:   `{"type":"object","properties":{"enum":{"type":"array","items":[{"type":"number"}]},"default":{"type":"array","items":[{"type":"string"}]}}}`,
+			want: `{"type":"object","properties":{"enum":{"type":"array","items":{"type":"number"}},"default":{"type":"array","items":{"type":"string"}}}}`,
+		},
+		{
 			name: "plain schema unchanged",
 			in:   `{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{}}`,
 		},
@@ -65,11 +90,12 @@ func TestNormalizeOpenAIToolSchema(t *testing.T) {
 				}
 				return
 			}
-			var g, w any
-			if err := json.Unmarshal(got, &g); err != nil {
+			g, err := decodeNumbers(got)
+			if err != nil {
 				t.Fatalf("output not JSON: %s", got)
 			}
-			if err := json.Unmarshal([]byte(tc.want), &w); err != nil {
+			w, err := decodeNumbers([]byte(tc.want))
+			if err != nil {
 				t.Fatalf("bad want: %v", err)
 			}
 			if !reflect.DeepEqual(g, w) {
@@ -101,4 +127,14 @@ func TestOpenAIConvert_ToolSchemaNormalized(t *testing.T) {
 	if _, ok := coord["additionalItems"]; ok {
 		t.Errorf("additionalItems not removed: %v", coord)
 	}
+}
+
+// decodeNumbers decodes JSON keeping numbers as json.Number so precision
+// differences are visible to reflect.DeepEqual.
+func decodeNumbers(b []byte) (any, error) {
+	var v any
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.UseNumber()
+	err := dec.Decode(&v)
+	return v, err
 }
