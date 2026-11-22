@@ -13,6 +13,9 @@ const linuxWriteHint = "Install wl-clipboard or xclip to copy to the clipboard"
 // The context it receives is cancelled after five seconds.
 type InputRunner func(ctx context.Context, stdin string, name string, args ...string) error
 
+// defaultRunInput deliberately leaves Stdout/Stderr unset (/dev/null):
+// xclip and wl-copy fork a background owner of the selection, and a pipe
+// held by that child would make Wait block until the timeout.
 func defaultRunInput(ctx context.Context, stdin string, name string, args ...string) error {
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Stdin = strings.NewReader(stdin)
