@@ -178,7 +178,7 @@ func (c *openaiClient) convertToOpenAIRequest(req *MessageRequest) *openaiChatCo
 				Function: openaiFunction{
 					Name:        tool.Name,
 					Description: tool.Description,
-					Parameters:  tool.InputSchema,
+					Parameters:  normalizeOpenAIToolSchema(tool.InputSchema),
 				},
 			})
 		}
