@@ -183,6 +183,10 @@ type MainTarget struct {
 	ContextWindow int
 	// MaxTokens is the request max_tokens (0 → 8192).
 	MaxTokens int
+	// StripThinking asks SetMainTarget to drop thinking blocks from the
+	// history even when ProviderID is unchanged (the provider's endpoint was
+	// edited, so old signatures may be invalid). It is never stored.
+	StripThinking bool
 }
 
 // Config is the constructor parameter bundle for New.
@@ -296,10 +300,11 @@ func (e *engineImpl) SetMainTarget(t MainTarget) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.mainMu.Lock()
-	providerChanged := t.ProviderID != e.main.ProviderID
+	strip := t.ProviderID != e.main.ProviderID || t.StripThinking
+	t.StripThinking = false
 	e.main = t
 	e.mainMu.Unlock()
-	if providerChanged {
+	if strip {
 		e.messages = stripThinking(e.messages)
 	}
 }

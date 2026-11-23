@@ -68,8 +68,8 @@ func newTestRouter(t *testing.T, config string) *tierRouter {
 	if err := os.WriteFile(modeltier.DefaultPath(home), []byte(config), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	factory := func(id string, _ modeltier.Provider, key string) (api.Client, error) {
-		if key == "" {
+	factory := func(id string, p modeltier.Provider, key string) (api.Client, error) {
+		if key == "" && (p.APIKeyEnv != "" || p.APIKeySource != "") {
 			t.Errorf("factory called for %s without a key", id)
 		}
 		return &providerClient{id: id}, nil
@@ -276,10 +276,11 @@ func TestResolveSubAgentTarget_ProviderAddedAfterStartup(t *testing.T) {
 	if err := r.store.Bind("lite", "late", "m"); err != nil {
 		t.Fatalf("Bind: %v", err)
 	}
-	// ...but it has no client until restart: dispatch must fail, not use main.
+	// ...but a hand-edited provider has no client until /provider (or a
+	// restart) builds one: dispatch must fail, not use main.
 	got, err := resolveSubAgentTarget(r, "direct", "claude-parent", "", "lite")
-	if err == nil || !strings.Contains(err.Error(), "restart") {
-		t.Fatalf("err = %v, want restart hint", err)
+	if err == nil || !strings.Contains(err.Error(), "no client") {
+		t.Fatalf("err = %v, want no-client error", err)
 	}
 	if got.Client != nil || got.Model != "" {
 		t.Errorf("target = %+v, want empty", got)

@@ -2,7 +2,7 @@
 package: clipboard
 import_path: internal/clipboard
 layer: unknown
-generated_at: 2026-11-22T14:16:46Z
+generated_at: 2026-11-23T07:05:36Z
 source_files: [clipboard.go, darwin.go, image.go, linux.go, write.go]
 ---
 

@@ -259,6 +259,9 @@ func runInteractive(f *rootFlags, opts ContainerOptions) error {
 		container.QuestionRespCh,
 		externalAgentCommands(container),
 	)
+	if am, ok := m.(tui.AppModel); ok {
+		m = am.WithProviders(container.Providers)
+	}
 	// v2: alt-screen and mouse mode are set on the View (AppModel.screenView),
 	// not via program options.
 	p := tea.NewProgram(m)

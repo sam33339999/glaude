@@ -36,13 +36,19 @@ type ModelInfo struct {
 	MaxTokens     int `toml:"max_tokens,omitempty"`
 }
 
-// Provider is one registered endpoint. Keys are only ever read from the
-// environment variable named by APIKeyEnv; plaintext keys are rejected.
+// KeySourceStored is the only accepted api_key_source value: the key lives in
+// credentials.json (written by /provider), never in config.toml.
+const KeySourceStored = "stored"
+
+// Provider is one registered endpoint. Keys come from the environment
+// variable named by APIKeyEnv or, when APIKeySource is "stored", from
+// credentials.json; plaintext keys in config.toml are rejected.
 type Provider struct {
-	Format    string               `toml:"format"`
-	BaseURL   string               `toml:"base_url"`
-	APIKeyEnv string               `toml:"api_key_env"`
-	Models    map[string]ModelInfo `toml:"models,omitempty"`
+	Format       string               `toml:"format"`
+	BaseURL      string               `toml:"base_url"`
+	APIKeyEnv    string               `toml:"api_key_env"`
+	APIKeySource string               `toml:"api_key_source,omitempty"`
+	Models       map[string]ModelInfo `toml:"models,omitempty"`
 }
 
 // TierEntry is one [tiers.<name>] table. An entry without Provider/Model is
@@ -153,6 +159,15 @@ func validate(cfg *Config, undecoded []toml.Key) []string {
 		if p.Format != FormatAnthropic && p.Format != FormatOpenAI {
 			warn("providers.%s: format must be %q or %q; ignoring provider", id, FormatAnthropic, FormatOpenAI)
 			dropped[id] = true
+		}
+		switch {
+		case p.APIKeySource != "" && p.APIKeySource != KeySourceStored:
+			warn("providers.%s: api_key_source must be %q; ignoring provider", id, KeySourceStored)
+			dropped[id] = true
+		case p.APIKeySource != "" && p.APIKeyEnv != "":
+			warn("providers.%s: both api_key_env and api_key_source are set; using api_key_env", id)
+			p.APIKeySource = ""
+			cfg.Providers[id] = p
 		}
 		for model, info := range p.Models {
 			info.ContextWindow = positiveOrWarn(info.ContextWindow, fmt.Sprintf("providers.%s.models.%q.context_window", id, model), warn)

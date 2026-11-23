@@ -2,10 +2,12 @@ package bootstrap
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/tunsuy/glaude/internal/agenttype"
 	"github.com/tunsuy/glaude/internal/api"
@@ -18,9 +20,15 @@ import (
 type providerClientFactory func(id string, p modeltier.Provider, apiKey string) (api.Client, error)
 
 // tierRouter routes sub-agents to the provider client of their tier binding.
-// Clients are built once at startup (they do not connect until used).
+// Clients are built at startup and rebuilt by upsert when /provider edits a
+// provider (they do not connect until used). Targets already handed out keep
+// the client they were given.
 type tierRouter struct {
 	store   *modeltier.Store
+	factory providerClientFactory
+	getenv  func(string) string
+
+	mu      sync.RWMutex
 	clients map[string]api.Client
 	// keyErr records providers whose client could not be built (missing key
 	// or construction error); dispatching to them fails loudly.
@@ -46,33 +54,81 @@ func loadTierRouter(homeDir string, mainClient api.Client, factory providerClien
 	}
 	r := &tierRouter{
 		store:   store,
+		factory: factory,
+		getenv:  os.Getenv,
 		clients: map[string]api.Client{modeltier.MainProviderID: mainClient},
 		keyErr:  map[string]error{},
+	}
+	if err := modeltier.CheckCredentials(store.CredentialsPath()); err != nil {
+		w := err.Error()
+		warnings = append(warnings, w)
+		store.AppendWarnings(w)
 	}
 	for _, ps := range store.Providers() {
 		if ps.ID == modeltier.MainProviderID {
 			continue
 		}
-		p, _ := store.Provider(ps.ID)
-		key := ""
-		if p.APIKeyEnv != "" {
-			key = os.Getenv(p.APIKeyEnv)
-			if key == "" {
-				r.keyErr[ps.ID] = fmt.Errorf("environment variable %s is not set", p.APIKeyEnv)
-				continue
-			}
-		}
-		client, err := factory(ps.ID, p, key)
-		if err != nil {
-			r.keyErr[ps.ID] = fmt.Errorf("build client: %w", err)
+		if err := r.upsert(ps.ID); err != nil && errors.Is(err, errClientBuild) {
 			w := fmt.Sprintf("config.toml: providers.%s: %v", ps.ID, err)
 			warnings = append(warnings, w)
 			store.AppendWarnings(w)
-			continue
 		}
-		r.clients[ps.ID] = client
 	}
 	return r, warnings
+}
+
+// errClientBuild marks a client construction failure (as opposed to a
+// missing key), which is also reported as a startup warning.
+var errClientBuild = errors.New("build client")
+
+// upsert (re)builds provider id's client from the store's current entry and
+// credentials. The returned error is also recorded for dispatch.
+func (r *tierRouter) upsert(id string) error {
+	p, ok := r.store.Provider(id)
+	if !ok {
+		r.remove(id)
+		return fmt.Errorf("provider %q is not registered", id)
+	}
+	key, _, err := modeltier.ResolveKey(id, p, r.store.CredentialsPath(), r.getenv)
+	var client api.Client
+	if err == nil {
+		client, err = r.factory(id, p, key)
+		if err != nil {
+			err = fmt.Errorf("%w: %v", errClientBuild, err)
+		}
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if err != nil {
+		delete(r.clients, id)
+		r.keyErr[id] = err
+		return err
+	}
+	r.clients[id] = client
+	delete(r.keyErr, id)
+	return nil
+}
+
+// remove drops provider id's client.
+func (r *tierRouter) remove(id string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.clients, id)
+	delete(r.keyErr, id)
+}
+
+// client returns provider id's client, or why it has none. MainProviderID
+// is always the startup (settings.json) client.
+func (r *tierRouter) client(id string) (api.Client, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if err := r.keyErr[id]; err != nil {
+		return nil, err
+	}
+	if c := r.clients[id]; c != nil {
+		return c, nil
+	}
+	return nil, fmt.Errorf("provider %q has no client", id)
 }
 
 func defaultProviderClient(_ string, p modeltier.Provider, apiKey string) (api.Client, error) {
@@ -100,20 +156,12 @@ func resolveSubAgentTarget(r *tierRouter, provider, parentModel, toolModel, prof
 	switch kind {
 	case modeltier.Bound:
 		t := subAgentTarget{Model: b.Model, ContextWindow: b.ContextWindow, MaxTokens: b.MaxTokens}
-		if b.Provider == modeltier.MainProviderID {
-			// main: always means the startup (settings.json) client, even
-			// after /model moved the main loop elsewhere.
-			t.Client = r.clients[modeltier.MainProviderID]
-			return t, nil
-		}
-		if err := r.keyErr[b.Provider]; err != nil {
+		// main: always the startup (settings.json) client, even after /model
+		// moved the main loop elsewhere. Never fall back to the main client
+		// for any other provider.
+		client, err := r.client(b.Provider)
+		if err != nil {
 			return subAgentTarget{}, fmt.Errorf("tier %q → provider %q: %w", tierLabel(b, cand), b.Provider, err)
-		}
-		client, ok := r.clients[b.Provider]
-		if !ok || client == nil {
-			// Registered after startup (picked up by a /tier rewrite): no
-			// client exists yet. Never fall back to the main client.
-			return subAgentTarget{}, fmt.Errorf("tier %q → provider %q: provider was added after startup; restart glaude to use it", tierLabel(b, cand), b.Provider)
 		}
 		t.Client = client
 		return t, nil
@@ -190,11 +238,9 @@ func (t *tierManager) ListProviderModels(ctx context.Context, providerID string)
 		if !ok {
 			return nil, fmt.Errorf("provider %q is not registered", providerID)
 		}
-		key := ""
-		if p.APIKeyEnv != "" {
-			if key = os.Getenv(p.APIKeyEnv); key == "" {
-				return nil, fmt.Errorf("environment variable %s is not set", p.APIKeyEnv)
-			}
+		key, _, err := modeltier.ResolveKey(providerID, p, t.CredentialsPath(), os.Getenv)
+		if err != nil {
+			return nil, err
 		}
 		cfg = api.ClientConfig{Provider: api.ProviderOpenAI, BaseURL: p.BaseURL, APIKey: key}
 		if p.Format == modeltier.FormatAnthropic {

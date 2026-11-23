@@ -60,4 +60,4 @@
 
 ## 不支援的部分
 
-OAuth 登入、Bedrock / Vertex、在 `/setup` 裡註冊第二個 provider（請照 `docs/config.example.toml` 手動編輯 `config.toml`）、會話中途立即生效。
+OAuth 登入、Bedrock / Vertex、在 `/setup` 裡註冊第二個 provider（請用 [`/provider`](provider.md)，或照 `docs/config.example.toml` 手動編輯 `config.toml`）、會話中途立即生效。

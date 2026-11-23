@@ -18,8 +18,11 @@ type ProviderStatus struct {
 	Format    string
 	BaseURL   string
 	APIKeyEnv string
-	// KeyPresent reports whether APIKeyEnv is set, checked at call time.
-	// Always true for MainProviderID and for providers without APIKeyEnv.
+	// KeySource is where the key comes from: KeySourceEnv, KeySourceStored
+	// or KeySourceNone ("" for MainProviderID).
+	KeySource string
+	// KeyPresent reports whether the key resolves, checked at call time.
+	// Always true for MainProviderID and for providers without a key.
 	KeyPresent bool
 	// Models lists the model IDs declared under [providers.<id>.models],
 	// sorted. Empty for MainProviderID.
@@ -66,13 +69,15 @@ func (s *Store) Providers() []ProviderStatus {
 			models = append(models, m)
 		}
 		sort.Strings(models)
+		_, src, keyErr := ResolveKey(id, p, s.CredentialsPath(), os.Getenv)
 		out = append(out, ProviderStatus{
+			KeySource:  src,
 			Models:     models,
 			ID:         id,
 			Format:     p.Format,
 			BaseURL:    p.BaseURL,
 			APIKeyEnv:  p.APIKeyEnv,
-			KeyPresent: p.APIKeyEnv == "" || os.Getenv(p.APIKeyEnv) != "",
+			KeyPresent: keyErr == nil,
 		})
 	}
 	return out
@@ -190,7 +195,7 @@ func (s *Store) commitLocked(mutate func(raw map[string]any)) error {
 	if err != nil {
 		return fmt.Errorf("modeltier: re-parse rewritten config: %w", err)
 	}
-	if err := writeAtomic(s.path, buf.Bytes()); err != nil {
+	if err := writeAtomic(s.path, buf.Bytes(), 0o644, ".config.toml.*"); err != nil {
 		return err
 	}
 	s.cfg = next
@@ -213,12 +218,14 @@ func validTierName(tier string) (string, error) {
 	return name, nil
 }
 
-func writeAtomic(path string, content []byte) error {
+// writeAtomic replaces path via a temp file (named by pattern) that gets
+// mode before the rename, so the target is never briefly wider.
+func writeAtomic(path string, content []byte, mode os.FileMode, pattern string) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("modeltier: create %s: %w", dir, err)
 	}
-	tmp, err := os.CreateTemp(dir, ".config.toml.*")
+	tmp, err := os.CreateTemp(dir, pattern)
 	if err != nil {
 		return fmt.Errorf("modeltier: create temp file: %w", err)
 	}
@@ -228,7 +235,7 @@ func writeAtomic(path string, content []byte) error {
 		tmp.Close()
 		return fmt.Errorf("modeltier: write temp file: %w", err)
 	}
-	if err := tmp.Chmod(0o644); err != nil {
+	if err := tmp.Chmod(mode); err != nil {
 		tmp.Close()
 		return fmt.Errorf("modeltier: chmod temp file: %w", err)
 	}

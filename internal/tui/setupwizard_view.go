@@ -16,7 +16,7 @@ func (w *setupWizard) view(width, maxHeight int, theme Theme) string {
 	case stepValidating:
 		body = "Checking the endpoint (GET /models)…\n\n" + mutedStyle(theme).Render("Esc cancel")
 	case stepModels:
-		body = w.viewModels(maxHeight, theme)
+		body = w.modelChooser.view(maxHeight, theme)
 	case stepManualModels:
 		body = w.viewManual(theme)
 	case stepRoles:
@@ -70,46 +70,6 @@ func (w *setupWizard) viewEndpoint(theme Theme) string {
 		sb.WriteString(mutedStyle(theme).Render("    (already set — leave empty to keep using "+src+")") + "\n")
 	}
 	sb.WriteString("\n" + mutedStyle(theme).Render("Tab switch field · Enter verify · Esc back"))
-	return sb.String()
-}
-
-func (w *setupWizard) viewModels(maxHeight int, theme Theme) string {
-	list := w.filtered()
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "Search: %s█   %s\n", string(w.filter),
-		mutedStyle(theme).Render(fmt.Sprintf("(%d models, %d match, %d checked)", len(w.models), len(list), len(w.checkOrder))))
-	rows := max(maxHeight-10, 3)
-	start := 0
-	if w.cursor >= rows {
-		start = w.cursor - rows + 1
-	}
-	end := min(start+rows, len(list))
-	if start > 0 {
-		sb.WriteString(mutedStyle(theme).Render(fmt.Sprintf("  ↑ %d more", start)) + "\n")
-	}
-	for i := start; i < end; i++ {
-		m := list[i]
-		box := "[ ]"
-		if w.checked[m.ID] {
-			box = "[x]"
-		}
-		line := box + " " + m.ID
-		if m.ContextWindow > 0 {
-			line += "  " + mutedStyle(theme).Render(compactCount(m.ContextWindow))
-		}
-		if i == w.cursor {
-			sb.WriteString(primaryStyle(theme).Render("❯ ") + line + "\n")
-		} else {
-			sb.WriteString("  " + line + "\n")
-		}
-	}
-	if end < len(list) {
-		sb.WriteString(mutedStyle(theme).Render(fmt.Sprintf("  ↓ %d more", len(list)-end)) + "\n")
-	}
-	if len(list) == 0 {
-		sb.WriteString(mutedStyle(theme).Render("  (no model matches)") + "\n")
-	}
-	sb.WriteString("\n" + mutedStyle(theme).Render("type to search · ↑/↓ move · Space check · Enter next · Esc back"))
 	return sb.String()
 }
 

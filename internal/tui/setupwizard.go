@@ -62,11 +62,7 @@ type setupWizard struct {
 	manual    []rune
 	errMsg    string
 
-	models     []commands.SetupModel
-	filter     []rune
-	cursor     int // index into filtered()
-	checked    map[string]bool
-	checkOrder []string
+	modelChooser
 
 	roleCursor int
 	// roleChoice[i] indexes checkOrder for setupRoles[i]; -1 = unbound.
@@ -78,7 +74,7 @@ type setupWizard struct {
 }
 
 func newSetupWizard(d commands.SetupDefaults, overrides []string) *setupWizard {
-	w := &setupWizard{defaults: d, overrides: overrides, checked: map[string]bool{}}
+	w := &setupWizard{defaults: d, overrides: overrides, modelChooser: newModelChooser(nil, nil)}
 	for i, f := range setupFormats {
 		if f.id == d.Format {
 			w.formatIdx = i
@@ -149,8 +145,7 @@ func (w *setupWizard) handlePaste(text string) {
 	case stepManualModels:
 		w.manual = append(w.manual, []rune(text)...)
 	case stepModels:
-		w.filter = append(w.filter, []rune(text)...)
-		w.cursor = 0
+		w.paste(text)
 	}
 }
 
@@ -217,77 +212,20 @@ func (w *setupWizard) onModels(models []commands.SetupModel, err error) {
 		w.errMsg = err.Error()
 		w.step = stepEndpoint
 	default:
-		w.models = models
-		w.filter, w.cursor, w.errMsg = nil, 0, ""
-		w.checked, w.checkOrder = map[string]bool{}, nil
+		w.modelChooser = newModelChooser(models, nil)
+		w.errMsg = ""
 		w.step = stepModels
 	}
 }
 
-// filtered returns the models matching the filter (case-insensitive substring).
-func (w *setupWizard) filtered() []commands.SetupModel {
-	q := strings.ToLower(string(w.filter))
-	if q == "" {
-		return w.models
-	}
-	var out []commands.SetupModel
-	for _, m := range w.models {
-		if strings.Contains(strings.ToLower(m.ID), q) {
-			out = append(out, m)
-		}
-	}
-	return out
-}
-
 func (w *setupWizard) keyModels(key tea.KeyPressMsg) setupAction {
-	list := w.filtered()
-	switch key.Code {
-	case tea.KeyUp:
-		if w.cursor > 0 {
-			w.cursor--
-		}
-	case tea.KeyDown:
-		if w.cursor < len(list)-1 {
-			w.cursor++
-		}
-	case tea.KeySpace:
-		if w.cursor < len(list) {
-			w.toggle(list[w.cursor].ID)
-		}
-	case tea.KeyBackspace:
-		w.filter = dropLast(w.filter)
-		w.cursor = 0
-	case tea.KeyEsc:
+	switch w.modelChooser.handleKey(key) {
+	case chooserBack:
 		w.step = stepEndpoint
-	case tea.KeyEnter:
-		if len(w.checkOrder) == 0 && w.cursor < len(list) {
-			w.toggle(list[w.cursor].ID)
-		}
-		if len(w.checkOrder) > 0 {
-			w.enterRoles()
-		}
-	default:
-		if key.Text != "" {
-			w.filter = append(w.filter, []rune(key.Text)...)
-			w.cursor = 0
-		}
+	case chooserDone:
+		w.enterRoles()
 	}
 	return actNone
-}
-
-func (w *setupWizard) toggle(id string) {
-	if w.checked[id] {
-		delete(w.checked, id)
-		for i, v := range w.checkOrder {
-			if v == id {
-				w.checkOrder = append(w.checkOrder[:i], w.checkOrder[i+1:]...)
-				break
-			}
-		}
-		return
-	}
-	w.checked[id] = true
-	w.checkOrder = append(w.checkOrder, id)
 }
 
 func (w *setupWizard) keyManual(key tea.KeyPressMsg) setupAction {
@@ -297,7 +235,7 @@ func (w *setupWizard) keyManual(key tea.KeyPressMsg) setupAction {
 	case tea.KeyEsc:
 		w.step = stepEndpoint
 	case tea.KeyEnter:
-		w.models, w.checked, w.checkOrder = nil, map[string]bool{}, nil
+		w.modelChooser = newModelChooser(nil, nil)
 		for _, id := range strings.Split(string(w.manual), ",") {
 			if id = strings.TrimSpace(id); id != "" && !w.checked[id] {
 				w.models = append(w.models, commands.SetupModel{ID: id})

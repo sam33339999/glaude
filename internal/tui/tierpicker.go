@@ -75,6 +75,8 @@ func newTierPicker(m commands.TierManager) *tierPicker {
 		switch {
 		case ps.APIKeyEnv != "" && !ps.KeyPresent:
 			p.fetched[ps.ID] = &tierFetch{err: ps.APIKeyEnv + " is not set"}
+		case !ps.KeyPresent:
+			p.fetched[ps.ID] = &tierFetch{err: "the stored key is missing; re-enter it with /provider"}
 		default:
 			p.fetched[ps.ID] = &tierFetch{loading: true}
 		}
@@ -367,14 +369,17 @@ func (p *tierPicker) providerSummary() string {
 	parts := make([]string, 0, len(p.providers))
 	for _, ps := range p.providers {
 		s := ps.ID
-		if ps.APIKeyEnv != "" && !ps.KeyPresent {
+		switch {
+		case ps.APIKeyEnv != "" && !ps.KeyPresent:
 			s += " (" + ps.APIKeyEnv + " missing)"
+		case !ps.KeyPresent:
+			s += " (stored key missing)"
 		}
 		parts = append(parts, s)
 	}
 	s := strings.Join(parts, " · ")
 	if len(p.providers) <= 1 {
-		s += "  — register more under [providers.ID] in ~/.glaude/config.toml"
+		s += "  — add more with /provider"
 	}
 	return s
 }

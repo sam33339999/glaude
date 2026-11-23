@@ -71,12 +71,12 @@ func (s *modelSwitcher) fromBinding(name string, b modeltier.Binding) commands.M
 		o.Reason = "unbound"
 	case b.Provider == modeltier.MainProviderID:
 		o.Available = true
-	case s.router.keyErr[b.Provider] != nil:
-		o.Reason = s.router.keyErr[b.Provider].Error()
-	case s.router.clients[b.Provider] == nil:
-		o.Reason = "provider added after startup; restart glaude to use it"
 	default:
-		o.Available = true
+		if _, err := s.router.client(b.Provider); err != nil {
+			o.Reason = err.Error()
+		} else {
+			o.Available = true
+		}
 	}
 	return o
 }
@@ -143,13 +143,11 @@ func (s *modelSwitcher) clientFor(provider string) (api.Client, error) {
 	if provider == modeltier.MainProviderID {
 		return s.startup.Client, nil
 	}
+	if s.router != nil {
+		return s.router.client(provider)
+	}
 	if cur := s.eng.MainTarget(); cur.ProviderID == provider && cur.Client != nil {
 		return cur.Client, nil
-	}
-	if s.router != nil {
-		if c := s.router.clients[provider]; c != nil {
-			return c, nil
-		}
 	}
 	return nil, fmt.Errorf("provider %q has no client", provider)
 }
