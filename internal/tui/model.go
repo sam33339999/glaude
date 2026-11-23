@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/glamour"
 	"github.com/tunsuy/glaude/internal/clipboard"
@@ -108,7 +107,7 @@ type AppModel struct {
 	// --- Scroll & layout ---
 	termWidth      int
 	termHeight     int
-	viewport       viewport.Model
+	viewport       scrollView
 	pinnedToBottom bool
 
 	// --- Slash commands ---
@@ -363,7 +362,7 @@ func newAppModel(
 		fileIndex:      newFileIndex(cwd),
 		pinnedToBottom: true,
 		memoryStore:    memoryStore,
-		viewport:       viewport.New(viewport.WithWidth(80), viewport.WithHeight(20)),
+		viewport:       newScrollView(80, 20),
 		permAskCh:      permAskCh,
 		permRespCh:     permRespCh,
 		agentEventCh:   agentEventCh,

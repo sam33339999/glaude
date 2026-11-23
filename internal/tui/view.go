@@ -281,35 +281,18 @@ func (m *AppModel) renderOpts() renderOptions {
 // messages come from the render cache; only changed ones are re-rendered.
 // The welcome header is included as part of the content so it scrolls with messages.
 func (m *AppModel) syncViewportContent() {
-	var contentBuilder strings.Builder
-
-	headerLines := 0
-	if header := m.welcomeHeader.View(m.termWidth, m.theme); header != "" {
-		contentBuilder.WriteString(header)
-		headerLines = strings.Count(header, "\n")
-	}
-
 	if m.renderCache == nil {
 		m.renderCache = newMessageRenderCache()
 	}
 	msgs := m.visibleMessages()
 	m.renderCache.prune(len(msgs))
-	list, refs, userLines := renderMessageListLayout(msgs, m.renderOpts(), m.renderCache)
-	contentBuilder.WriteString(list)
-
-	// Trim trailing newlines to avoid excessive blank space at bottom.
-	content := strings.TrimRight(contentBuilder.String(), "\n")
-	m.viewport.SetContent(content)
-	m.contentLines = strings.Split(content, "\n")
-	m.codeRefs = m.codeRefs[:0]
-	for _, r := range refs {
-		r.line += headerLines
-		m.codeRefs = append(m.codeRefs, r)
-	}
-	m.userTurnLines = m.userTurnLines[:0]
-	for _, l := range userLines {
-		m.userTurnLines = append(m.userTurnLines, l+headerLines)
-	}
+	header := m.welcomeHeader.View(m.termWidth, m.theme)
+	// Trailing empty lines are dropped to avoid blank space at the bottom.
+	lines, refs, userLines := renderMessageListLines(header, msgs, m.renderOpts(), m.renderCache)
+	m.viewport.SetContentLines(lines)
+	m.contentLines = lines
+	m.codeRefs = refs
+	m.userTurnLines = userLines
 	if m.termHeight > 0 {
 		m.viewport.SetHeight(m.viewportHeight())
 	}

@@ -37,9 +37,10 @@ type renderKey struct {
 }
 
 type cacheEntry struct {
-	key  renderKey
-	out  string
-	refs []codeBlockRef // code block headers, lines relative to out
+	key   renderKey
+	out   string
+	refs  []codeBlockRef // code block headers, lines relative to out
+	lines []string       // strings.Split(out, "\n"), filled on first use
 }
 
 // newMessageRenderCache returns an empty cache.
@@ -106,6 +107,17 @@ func (c *messageRenderCache) renderRefs(i int, msg types.Message, opts renderOpt
 	}
 	c.entries[i] = cacheEntry{key: k, out: out, refs: refs}
 	return out, refs
+}
+
+// renderLines is renderRefs that returns the output split into lines; the
+// split is cached with the entry, so unchanged messages cost no re-split.
+func (c *messageRenderCache) renderLines(i int, msg types.Message, opts renderOptions, lookups MessageLookups) ([]string, []codeBlockRef) {
+	c.renderRefs(i, msg, opts, lookups)
+	e := &c.entries[i]
+	if e.lines == nil {
+		e.lines = strings.Split(e.out, "\n")
+	}
+	return e.lines, e.refs
 }
 
 // prune drops entries past n (the history shrank).
