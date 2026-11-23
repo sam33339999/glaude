@@ -27,6 +27,7 @@ func RegisterBuiltins(r *Registry) {
 	r.Register(cmdMCP())
 	r.Register(cmdTier())
 	r.Register(cmdSetup())
+	r.Register(cmdProvider())
 	r.Register(cmdBTW())
 	r.Register(cmdLoop())
 	r.Register(cmdGoal())

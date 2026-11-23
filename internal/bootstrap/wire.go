@@ -119,6 +119,8 @@ type AppContainer struct {
 	Setup commands.SetupBackend
 	// ModelSwitcher serves /model (never nil).
 	ModelSwitcher commands.ModelSwitcher
+	// Providers serves /provider (never nil).
+	Providers commands.ProviderBackend
 	// ACPAgents manages external ACP agents (nil when none configured).
 	// Close terminates their processes.
 	ACPAgents *acpclient.Manager
@@ -312,6 +314,7 @@ func BuildContainer(opts ContainerOptions) (*AppContainer, error) {
 		MainClientConfig: mainClientConfig(settings, apiKey, opts),
 		Setup:            newSetupBackend(opts.HomeDir, settings, apiKey == "", hasOAuthToken()),
 		ModelSwitcher:    newModelSwitcher(eng, router, store, eng.MainTarget(), mainWireFormat(settings)),
+		Providers:        newProviderBackend(router, eng, store),
 		ACPAgents:        acpAgents,
 	}, nil
 }
@@ -462,6 +465,7 @@ func BuildContainerWithClient(opts ContainerOptions, client api.Client) (*AppCon
 		Tiers:            router.store,
 		Setup:            newSetupBackend(opts.HomeDir, settings, false, false),
 		ModelSwitcher:    newModelSwitcher(eng, router, store, eng.MainTarget(), mainWireFormat(settings)),
+		Providers:        newProviderBackend(router, eng, store),
 		ACPAgents:        acpAgents,
 	}, nil
 }

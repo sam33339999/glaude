@@ -68,8 +68,8 @@ func newTestRouter(t *testing.T, config string) *tierRouter {
 	if err := os.WriteFile(modeltier.DefaultPath(home), []byte(config), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	factory := func(id string, _ modeltier.Provider, key string) (api.Client, error) {
-		if key == "" {
+	factory := func(id string, p modeltier.Provider, key string) (api.Client, error) {
+		if key == "" && (p.APIKeyEnv != "" || p.APIKeySource != "") {
 			t.Errorf("factory called for %s without a key", id)
 		}
 		return &providerClient{id: id}, nil

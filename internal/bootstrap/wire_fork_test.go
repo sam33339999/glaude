@@ -23,6 +23,8 @@ type stubQueryEngine struct {
 	events []engine.Msg
 	calls  []engine.QueryParams
 	main   engine.MainTarget
+	// lastSetStrip records StripThinking of the last SetMainTarget call.
+	lastSetStrip bool
 }
 
 func (s *stubQueryEngine) Query(_ context.Context, p engine.QueryParams) (<-chan engine.Msg, error) {
@@ -41,8 +43,12 @@ func (s *stubQueryEngine) SetMessages(_ []types.Message) {}
 func (s *stubQueryEngine) SetModel(_ string)             {}
 
 // MainTarget returns the stub's configurable main target.
-func (s *stubQueryEngine) MainTarget() engine.MainTarget     { return s.main }
-func (s *stubQueryEngine) SetMainTarget(t engine.MainTarget) { s.main = t }
+func (s *stubQueryEngine) MainTarget() engine.MainTarget { return s.main }
+func (s *stubQueryEngine) SetMainTarget(t engine.MainTarget) {
+	s.lastSetStrip = t.StripThinking
+	t.StripThinking = false
+	s.main = t
+}
 
 func textMsg(role types.Role, text string) types.Message {
 	return types.Message{
