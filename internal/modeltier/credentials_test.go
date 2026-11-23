@@ -167,3 +167,35 @@ base_url = "x"
 	check("gone", KeySourceStored, false)
 	check("local", KeySourceNone, true)
 }
+
+func TestWriteCredentialNullFile(t *testing.T) {
+	p := credPath(t)
+	_ = os.MkdirAll(filepath.Dir(p), 0o755)
+	_ = os.WriteFile(p, []byte("null"), 0o600)
+	if err := WriteCredential(p, "a", "k"); err != nil {
+		t.Fatalf("null file: %v", err)
+	}
+	if got, _ := ReadCredential(p, "a"); got != "k" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestWriteCredentialRejectsBadShape(t *testing.T) {
+	for _, content := range []string{`[1,2]`, `{"providers":[1]}`, `{"providers":{"a":"str"}}`} {
+		p := credPath(t)
+		_ = os.MkdirAll(filepath.Dir(p), 0o755)
+		_ = os.WriteFile(p, []byte(content), 0o600)
+		if err := WriteCredential(p, "a", "k"); err == nil {
+			t.Errorf("%s: write accepted", content)
+		}
+		if data, _ := os.ReadFile(p); string(data) != content {
+			t.Errorf("%s: file rewritten to %s", content, data)
+		}
+		if err := CheckCredentials(p); err == nil {
+			t.Errorf("%s: CheckCredentials = nil", content)
+		}
+	}
+	if err := CheckCredentials(credPath(t)); err != nil {
+		t.Errorf("missing file: %v", err)
+	}
+}

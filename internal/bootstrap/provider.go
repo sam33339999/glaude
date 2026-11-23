@@ -85,6 +85,7 @@ func (b *providerBackend) Writable() error {
 // ListModels implements commands.ProviderBackend. An empty key on an
 // existing provider reuses its current key.
 func (b *providerBackend) ListModels(ctx context.Context, in commands.ProviderInput) ([]commands.SetupModel, error) {
+	in.ID = strings.TrimSpace(in.ID)
 	key := strings.TrimSpace(in.APIKey)
 	if key == "" && !in.NoKey {
 		p, ok := b.store.Provider(in.ID)
@@ -145,7 +146,7 @@ func (b *providerBackend) Apply(_ context.Context, plan commands.ProviderPlan) (
 		if err := modeltier.WriteCredential(credPath, id, key); err != nil {
 			return report, fmt.Errorf("save the API key: %w", err)
 		}
-	case in.NoKey:
+	case in.NoKey && !plan.IsNew:
 		if err := modeltier.WriteCredential(credPath, id, ""); err != nil {
 			return report, fmt.Errorf("remove the stored API key: %w", err)
 		}
@@ -153,18 +154,21 @@ func (b *providerBackend) Apply(_ context.Context, plan commands.ProviderPlan) (
 	if err := b.store.UpsertProvider(id, p, plan.IsNew); err != nil {
 		return report, fmt.Errorf("write config.toml: %w", err)
 	}
-	for _, tier := range []string{"lite", "pro", "max"} {
-		if model, ok := plan.Tiers[tier]; ok && model != "" {
-			if err := b.store.Bind(tier, id, model); err != nil {
-				return report, fmt.Errorf("bind %s: %w", tier, err)
-			}
-		}
-	}
+	// The client depends only on the provider entry: rebuild it (and move
+	// the main loop) before binding tiers, so a bind failure never leaves
+	// the router on the old endpoint.
 	if err := b.router.upsert(id); err != nil {
 		report.Warnings = append(report.Warnings, fmt.Sprintf("provider %s is saved but not usable yet: %v", id, err))
 	}
 	if cur := b.eng.MainTarget(); cur.ProviderID == id {
 		b.switchMain(cur, old, p, in.Format, &report)
+	}
+	for _, tier := range []string{"lite", "pro", "max"} {
+		if model, ok := plan.Tiers[tier]; ok && model != "" {
+			if err := b.store.Bind(tier, id, model); err != nil {
+				return report, fmt.Errorf("provider %s was saved and is in use, but binding %s failed: %w", id, tier, err)
+			}
+		}
 	}
 	return report, nil
 }

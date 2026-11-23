@@ -59,6 +59,11 @@ func loadTierRouter(homeDir string, mainClient api.Client, factory providerClien
 		clients: map[string]api.Client{modeltier.MainProviderID: mainClient},
 		keyErr:  map[string]error{},
 	}
+	if err := modeltier.CheckCredentials(store.CredentialsPath()); err != nil {
+		w := err.Error()
+		warnings = append(warnings, w)
+		store.AppendWarnings(w)
+	}
 	for _, ps := range store.Providers() {
 		if ps.ID == modeltier.MainProviderID {
 			continue

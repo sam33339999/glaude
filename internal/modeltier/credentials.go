@@ -41,14 +41,41 @@ func readCredentialsFile(path string) (map[string]any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("modeltier: read %s: %w", path, err)
 	}
-	raw := map[string]any{}
 	if len(bytes.TrimSpace(data)) == 0 {
-		return raw, nil
+		return map[string]any{}, nil
 	}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil, fmt.Errorf("modeltier: %s is not valid JSON; fix or remove it", path)
+	bad := fmt.Errorf("modeltier: %s is not a valid credentials file; fix or remove it", path)
+	var doc any
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil, bad
+	}
+	if doc == nil { // "null"
+		return map[string]any{}, nil
+	}
+	raw, ok := doc.(map[string]any)
+	if !ok {
+		return nil, bad
+	}
+	// Shape check: never overwrite data we do not understand.
+	if v, present := raw["providers"]; present && v != nil {
+		providers, ok := v.(map[string]any)
+		if !ok {
+			return nil, bad
+		}
+		for _, entry := range providers {
+			if _, ok := entry.(map[string]any); !ok {
+				return nil, bad
+			}
+		}
 	}
 	return raw, nil
+}
+
+// CheckCredentials reports a credentials.json that exists but cannot be
+// used (nil for a missing or valid file). The error never echoes content.
+func CheckCredentials(path string) error {
+	_, err := readCredentialsFile(path)
+	return err
 }
 
 // ReadCredential returns the stored API key of provider id. A missing file

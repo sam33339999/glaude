@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/tunsuy/glaude/internal/api"
 	"github.com/tunsuy/glaude/internal/commands"
 	"github.com/tunsuy/glaude/internal/modeltier"
 	"github.com/tunsuy/glaude/internal/state"
@@ -254,5 +255,42 @@ func TestApplyErrorsNeverContainKey(t *testing.T) {
 	}
 	if _, err := os.Stat(f.router.store.CredentialsPath()); !os.IsNotExist(err) {
 		t.Fatal("rejected plan must not write credentials")
+	}
+}
+
+func TestApplyBindFailureStillRebuildsClient(t *testing.T) {
+	f := newProviderFixture(t)
+	before, _ := f.router.client("zai")
+	plan := commands.ProviderPlan{
+		Input: commands.ProviderInput{ID: "zai", Format: commands.SetupFormatOpenAI, BaseURL: "https://moved", APIKey: "sk-n"},
+		Tiers: map[string]string{"pro": " "}, // Bind rejects an empty model
+	}
+	_, err := f.b.Apply(context.Background(), plan)
+	if err == nil || !strings.Contains(err.Error(), "saved") {
+		t.Fatalf("err = %v, want bind error saying the provider was saved", err)
+	}
+	if after, _ := f.router.client("zai"); after == before {
+		t.Fatal("client was not rebuilt after the provider was saved")
+	}
+}
+
+func TestApplyNewNoKeyIgnoresCorruptCredentials(t *testing.T) {
+	f := newProviderFixture(t)
+	_ = os.WriteFile(f.router.store.CredentialsPath(), []byte("{"), 0o600)
+	plan := commands.ProviderPlan{IsNew: true, Input: commands.ProviderInput{ID: "loc", Format: commands.SetupFormatOpenAI, BaseURL: "http://localhost", NoKey: true}}
+	if _, err := f.b.Apply(context.Background(), plan); err != nil {
+		t.Fatalf("new no-key provider blocked by credentials.json: %v", err)
+	}
+}
+
+func TestLoadTierRouterWarnsCorruptCredentials(t *testing.T) {
+	home := t.TempDir()
+	_ = os.MkdirAll(home+"/.glaude", 0o755)
+	_ = os.WriteFile(modeltier.DefaultPath(home), []byte("[providers.s]\nformat=\"openai\"\nbase_url=\"x\"\napi_key_source=\"stored\"\n"), 0o644)
+	_ = os.WriteFile(modeltier.DefaultCredentialsPath(home), []byte("{oops"), 0o600)
+	_, warnings := loadTierRouter(home, mainTestClient, func(string, modeltier.Provider, string) (api.Client, error) { return mainTestClient, nil })
+	joined := strings.Join(warnings, "\n")
+	if !strings.Contains(joined, "credentials.json") || strings.Contains(joined, "oops") {
+		t.Fatalf("warnings = %v", warnings)
 	}
 }
