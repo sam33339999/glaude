@@ -285,3 +285,34 @@ func TestProviderWizardNotWritable(t *testing.T) {
 		t.Fatalf("warnings not shown:\n%s", v)
 	}
 }
+
+func TestProviderWizardUnlistedModelCanBeUnchecked(t *testing.T) {
+	w := newPV("main")
+	pvKey(w, "down") // zai: models glm-5.3-flash, glm-x
+	pvKey(w, "enter")
+	pvKey(w, "enter")
+	pvKey(w, "enter")
+	w.onModels([]commands.SetupModel{{ID: "glm-5.3-flash"}}, nil) // glm-x no longer listed
+	list := w.filtered()
+	if len(list) != 2 || list[1].ID != "glm-x" {
+		t.Fatalf("unlisted prechecked model not shown: %+v", list)
+	}
+	pvKey(w, "down")
+	pvKey(w, "space") // uncheck glm-x
+	pvKey(w, "enter")
+	pvKey(w, "enter")
+	if p := w.plan(); len(p.Models) != 1 || p.Models[0].ID != "glm-5.3-flash" {
+		t.Fatalf("models = %+v", p.Models)
+	}
+}
+
+func TestProviderWizardDoneWithWarningsNotReady(t *testing.T) {
+	w := newPV("main")
+	w.step = pvWriting
+	w.id = []rune("x")
+	w.onApplied(commands.ProviderReport{Warnings: []string{"provider x is saved but not usable yet: no key"}}, nil)
+	v := w.view(100, 40, DefaultDarkTheme)
+	if strings.Contains(v, "ready to use") || !strings.Contains(v, "not usable yet") {
+		t.Fatalf("done view:\n%s", v)
+	}
+}

@@ -116,10 +116,10 @@ func TestProviderDialogApplyCallsBackend(t *testing.T) {
 	for _, r := range "loc" {
 		step(tea.KeyPressMsg{Code: r, Text: string(r)})
 	}
-	step(enter)                              // id → format
-	step(enter)                              // format → endpoint
-	step(tea.KeyPressMsg{Code: tea.KeyTab})  // key
-	step(tea.KeyPressMsg{Code: tea.KeyTab})  // no-key toggle
+	step(enter)                             // id → format
+	step(enter)                             // format → endpoint
+	step(tea.KeyPressMsg{Code: tea.KeyTab}) // key
+	step(tea.KeyPressMsg{Code: tea.KeyTab}) // no-key toggle
 	step(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 	step(enter) // validate → models (runs ListModels)
 	if m.providerWizard.step != pvModels {

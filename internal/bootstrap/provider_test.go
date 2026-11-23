@@ -294,3 +294,28 @@ func TestLoadTierRouterWarnsCorruptCredentials(t *testing.T) {
 		t.Fatalf("warnings = %v", warnings)
 	}
 }
+
+func TestApplyNoKeyKeepsCredentialWhenConfigWriteFails(t *testing.T) {
+	f := newProviderFixture(t)
+	if _, err := f.b.Apply(context.Background(), newPlan("st")); err != nil {
+		t.Fatal(err)
+	}
+	// Another writer breaks config.toml: the next rewrite is refused.
+	_ = os.WriteFile(f.router.store.Path(), []byte("[providers.st\n"), 0o644)
+	plan := commands.ProviderPlan{Input: commands.ProviderInput{ID: "st", Format: commands.SetupFormatOpenAI, BaseURL: "https://st", NoKey: true}}
+	if _, err := f.b.Apply(context.Background(), plan); err == nil {
+		t.Fatal("want config.toml error")
+	}
+	if key, err := modeltier.ReadCredential(f.router.store.CredentialsPath(), "st"); err != nil || key == "" {
+		t.Fatalf("stored key removed although config.toml still says stored: %v", err)
+	}
+}
+
+func TestApplyNoKeyFromEnvIgnoresCorruptCredentials(t *testing.T) {
+	f := newProviderFixture(t)
+	_ = os.WriteFile(f.router.store.CredentialsPath(), []byte("{"), 0o600)
+	plan := commands.ProviderPlan{Input: commands.ProviderInput{ID: "zai", Format: commands.SetupFormatOpenAI, BaseURL: "https://z", NoKey: true}}
+	if _, err := f.b.Apply(context.Background(), plan); err != nil {
+		t.Fatalf("env provider → no key blocked by credentials.json: %v", err)
+	}
+}

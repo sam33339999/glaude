@@ -85,4 +85,5 @@ Enter edit/add · d delete · Esc close
 
 - 不能改 id（請刪除後重新新增）。
 - 同時開兩個 glaude 視窗、都用 `/provider` 新增同一個 id 時，後寫的會蓋掉先寫的；`credentials.json` 沒有跨程序鎖。
-- 手動編輯 `config.toml` 新增的服務商，要重新啟動或用 `/provider` 存一次才會建立連線。
+- 手動編輯 `config.toml` 新增的服務商，要重新啟動 glaude 才會出現在 `/provider` 清單並建立連線。
+- 修改時金鑰欄留空會沿用原金鑰，即使 Base URL 換到別的網域也一樣；換到不同的服務時請一併輸入新金鑰。

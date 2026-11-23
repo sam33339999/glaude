@@ -346,6 +346,13 @@ func (w *providerWizard) onModels(models []commands.SetupModel, err error) {
 		w.errMsg = err.Error()
 		w.step = pvEndpoint
 	default:
+		// Models on file that the endpoint no longer lists stay visible so
+		// they can be unchecked.
+		for _, id := range pre {
+			if !slices.ContainsFunc(models, func(m commands.SetupModel) bool { return m.ID == id }) {
+				models = append(models, commands.SetupModel{ID: id})
+			}
+		}
 		w.modelChooser = newModelChooser(models, pre)
 		w.errMsg = ""
 		w.step = pvModels

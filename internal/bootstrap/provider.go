@@ -140,19 +140,22 @@ func (b *providerBackend) Apply(_ context.Context, plan commands.ProviderPlan) (
 	}
 	p.Models = mergeModels(old.Models, plan.Models)
 
+	// A new key is saved before config.toml points at it (a spare key is
+	// harmless); an old key is removed only after config.toml stopped
+	// pointing at it (never "stored" without a key).
 	credPath := b.store.CredentialsPath()
-	switch {
-	case key != "" && !in.NoKey:
+	if key != "" && !in.NoKey {
 		if err := modeltier.WriteCredential(credPath, id, key); err != nil {
 			return report, fmt.Errorf("save the API key: %w", err)
-		}
-	case in.NoKey && !plan.IsNew:
-		if err := modeltier.WriteCredential(credPath, id, ""); err != nil {
-			return report, fmt.Errorf("remove the stored API key: %w", err)
 		}
 	}
 	if err := b.store.UpsertProvider(id, p, plan.IsNew); err != nil {
 		return report, fmt.Errorf("write config.toml: %w", err)
+	}
+	if in.NoKey && old.APIKeySource == modeltier.KeySourceStored {
+		if err := modeltier.WriteCredential(credPath, id, ""); err != nil {
+			report.Warnings = append(report.Warnings, fmt.Sprintf("could not remove the old stored key: %v", err))
+		}
 	}
 	// The client depends only on the provider entry: rebuild it (and move
 	// the main loop) before binding tiers, so a bind failure never leaves

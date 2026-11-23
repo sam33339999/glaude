@@ -250,6 +250,8 @@ func (w *providerWizard) viewDone(theme Theme) string {
 		if len(w.report.Unbound) > 0 {
 			fmt.Fprintf(&sb, "Unbound tiers (now inherit the main model): %s\n", strings.Join(w.report.Unbound, ", "))
 		}
+	case len(w.report.Warnings) > 0:
+		fmt.Fprintf(&sb, "Saved provider %s, with problems:\n", w.providerID())
 	default:
 		fmt.Fprintf(&sb, "Saved provider %s. It is ready to use.\n", w.providerID())
 		if len(w.checkOrder) > 0 {

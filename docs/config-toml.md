@@ -5,7 +5,7 @@
 - 只讀全域這一份，沒有專案層或本地層。
 - 檔案不存在：沒有 provider、沒有等級，行為和沒有這個功能時完全一樣。
 - 格式錯誤或欄位不合法：啟動時印警告（stderr，並在 TUI 啟動訊息和 `/tier` 列表裡顯示），忽略有問題的部分，程式照常啟動。檔案無法解析時 `/tier` 拒絕寫檔。
-- 用 TUI 的 **`/provider`** 新增、修改、刪除 provider，存檔後**立即生效**，金鑰可以直接存在 `~/.glaude/credentials.json`，見 [`docs/provider.md`](provider.md)。手動編輯檔案新增的 provider 則要**重新啟動**（或用 `/provider` 存一次）才會建立連線；`/tier` 只能在已註冊的 provider 之間改綁定。
+- 用 TUI 的 **`/provider`** 新增、修改、刪除 provider，存檔後**立即生效**，金鑰可以直接存在 `~/.glaude/credentials.json`，見 [`docs/provider.md`](provider.md)。手動編輯檔案新增的 provider 則要**重新啟動**才會建立連線；`/tier` 只能在已註冊的 provider 之間改綁定。
 
 還沒有任何模型時，可以在 TUI 輸入 `/setup` 用引導的方式設定主腦與等級，見 [`docs/setup.md`](setup.md)。
 
