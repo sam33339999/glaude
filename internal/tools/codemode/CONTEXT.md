@@ -2,7 +2,7 @@
 package: codemode
 import_path: internal/tools/codemode
 layer: tools
-generated_at: 2026-11-22T14:16:46Z
+generated_at: 2026-11-23T07:05:36Z
 source_files: [approvals.go, bridge.go, replay.go, snippets.go, state.go, tool.go]
 ---
 

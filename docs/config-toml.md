@@ -5,7 +5,7 @@
 - 只讀全域這一份，沒有專案層或本地層。
 - 檔案不存在：沒有 provider、沒有等級，行為和沒有這個功能時完全一樣。
 - 格式錯誤或欄位不合法：啟動時印警告（stderr，並在 TUI 啟動訊息和 `/tier` 列表裡顯示），忽略有問題的部分，程式照常啟動。檔案無法解析時 `/tier` 拒絕寫檔。
-- 新增或修改 provider 要手動編輯檔案並**重新啟動**；`/tier` 只能在已註冊的 provider 之間改綁定。
+- 用 TUI 的 **`/provider`** 新增、修改、刪除 provider，存檔後**立即生效**，金鑰可以直接存在 `~/.glaude/credentials.json`，見 [`docs/provider.md`](provider.md)。手動編輯檔案新增的 provider 則要**重新啟動**（或用 `/provider` 存一次）才會建立連線；`/tier` 只能在已註冊的 provider 之間改綁定。
 
 還沒有任何模型時，可以在 TUI 輸入 `/setup` 用引導的方式設定主腦與等級，見 [`docs/setup.md`](setup.md)。
 
@@ -63,7 +63,8 @@ context_window = 200000
 |------|------|------|
 | `[providers.<id>]` | `format` | 必填。`"anthropic"`（Anthropic Messages）或 `"openai"`（OpenAI Chat Completions）。`bedrock` / `vertex` 不支援 |
 | | `base_url` | 端點網址；結尾的 `/v1` 會自動去掉 |
-| | `api_key_env` | 存放金鑰的**環境變數名稱**。不接受明文 `api_key`（出現時整個 provider 會被忽略）。留空表示這個端點不需要金鑰 |
+| | `api_key_env` | 存放金鑰的**環境變數名稱**。不接受明文 `api_key`（出現時整個 provider 會被忽略）。和 `api_key_source` 都留空表示這個端點不需要金鑰 |
+| | `api_key_source` | 選填，只接受 `"stored"`：金鑰存在 `~/.glaude/credentials.json`（由 `/provider` 寫入）。其他值會讓整個 provider 被忽略；和 `api_key_env` 同時出現時以 `api_key_env` 為準 |
 | `[providers.<id>.models."<模型>"]` | `context_window`、`max_tokens` | 選填，正整數 |
 | `[main]` | `context_window` | 選填。主腦的壓縮門檻和狀態列顯示用；不改主腦的請求內容 |
 | `[tiers.<名稱>]` | `provider`、`model` | 兩個都寫才算綁定；都不寫（空表）＝已知但未綁定 |
@@ -93,7 +94,7 @@ context_window = 200000
 
 內建的 explore agent 預設用 `lite`。fork agent 永遠繼承主腦（才能共用 prompt cache），不受等級影響。
 
-provider 的金鑰環境變數沒設時，啟動照常進行，但派工到那個等級會直接失敗，錯誤訊息會點名環境變數，**不會**默默改用主腦。
+金鑰的解析順序：`api_key_env`（變數必須有值）→ `api_key_source = "stored"`（`credentials.json` 必須有這一筆）→ 不帶金鑰。金鑰讀不到時，啟動照常進行，但派工到那個等級會直接失敗，錯誤訊息會點名環境變數或請你用 `/provider` 重新輸入，**不會**默默改用主腦或不帶金鑰送出。
 
 ## 在會話中切換主腦（`/model`）
 

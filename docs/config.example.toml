@@ -6,8 +6,11 @@
 # 說明文件：docs/config-toml.md
 # - 這個檔案只影響 sub-agent 的模型路由，以及主腦的上下文長度（[main]）。
 #   主腦的 provider / model 仍由 settings.json 決定。
-# - 金鑰只能透過 api_key_env 指定「環境變數名稱」，不接受明文 api_key。
-# - 新增或修改 provider 後要重新啟動；/tier 只能在已註冊的 provider 之間改綁定。
+# - 金鑰透過 api_key_env 指定「環境變數名稱」，或用 /provider 存進
+#   ~/.glaude/credentials.json（此時這裡會寫 api_key_source = "stored"）。
+#   不接受明文 api_key。
+# - 在 TUI 用 /provider 新增或修改 provider 會立即生效；手動編輯後要重新啟動。
+#   /tier 只能在已註冊的 provider 之間改綁定。
 # - /tier 寫回檔案時會重新輸出整個 TOML，這些註解會遺失。
 
 # ── Provider 註冊 ────────────────────────────────────────────────

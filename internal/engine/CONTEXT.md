@@ -2,7 +2,7 @@
 package: engine
 import_path: internal/engine
 layer: core
-generated_at: 2026-11-22T14:16:46Z
+generated_at: 2026-11-23T07:05:36Z
 source_files: [budget.go, cache_params.go, compaction.go, engine.go, forked_agent.go, msg.go, orchestration.go, query.go, stop_hooks.go, tool_images.go]
 ---
 
@@ -33,7 +33,7 @@ type QueryEngine interface {
 - **CacheSafeParams** — 7 fields: SystemPrompt, ContextMessages, ToolUseContext, Model, Client, ContextWindow, MaxTokens
 - **Config** — 9 fields: Client, Registry, Model, MaxTokens, PermissionChecker, StopHooks, MsgQueue, MainContextWindow, ...
 - **ForkedAgentConfig** — 6 fields: PromptMessages, CacheSafeParams, QuerySource, MaxTurns, AllowedTools, OnMessage
-- **MainTarget** — 5 fields: Client, ProviderID, Model, ContextWindow, MaxTokens
+- **MainTarget** — 6 fields: Client, ProviderID, Model, ContextWindow, MaxTokens, StripThinking
 - **Msg** — 21 fields: Type, TextDelta, ToolUseID, ToolName, InputDelta, ToolInput, ToolResult, AssistantMsg, ...
 - **PermissionRequestMsg** — 6 fields: RequestID, ToolUseID, ToolName, Message, Input, RespFn
 - **QueryParams** — 21 fields: Messages, SystemPrompt, UserContext, SystemContext, ToolUseContext, QuerySource, MaxOutputTokensOverride, MaxTurns, ...
@@ -97,9 +97,9 @@ type QueryEngine interface {
 - `CacheSafeParams` → `internal/bootstrap/tiers_test.go` (test), `internal/bootstrap/wire.go`, `internal/bootstrap/wire_fork_test.go` (test), `internal/memdir/dream.go`, `internal/tui/btw.go` + 2 more
 - `Config` → `internal/bootstrap/wire.go`
 - `ForkedAgentConfig` → `internal/memdir/dream.go`, `internal/memdir/extract.go`, `internal/memdir/session_memory.go`
-- `MainTarget` → `internal/bootstrap/modelswitch.go`, `internal/bootstrap/modelswitch_test.go` (test), `internal/bootstrap/soul_subagent_test.go` (test), `internal/bootstrap/tiers_test.go` (test), `internal/bootstrap/wire.go` + 8 more
+- `MainTarget` → `internal/bootstrap/modelswitch.go`, `internal/bootstrap/modelswitch_test.go` (test), `internal/bootstrap/provider.go`, `internal/bootstrap/soul_subagent_test.go` (test), `internal/bootstrap/tiers_test.go` (test) + 9 more
 - `Msg` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/run.go`, `internal/bootstrap/tiers_test.go` (test), `internal/bootstrap/wire.go`, `internal/bootstrap/wire_fork_test.go` (test) + 11 more
-- `QueryEngine` → `internal/bootstrap/modelswitch.go`, `internal/bootstrap/wire.go`, `internal/memdir/dream.go`, `internal/tui/cmds.go`, `internal/tui/init.go` + 1 more
+- `QueryEngine` → `internal/bootstrap/modelswitch.go`, `internal/bootstrap/provider.go`, `internal/bootstrap/wire.go`, `internal/memdir/dream.go`, `internal/tui/cmds.go` + 2 more
 - `QueryParams` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/run.go`, `internal/bootstrap/wire.go`, `internal/bootstrap/wire_fork_test.go` (test), `internal/tui/btw.go` + 3 more
 - `StopHookContext` → `internal/bootstrap/wire.go`, `internal/memdir/dream.go`, `internal/memdir/extract.go`, `internal/memdir/extract_test.go` (test), `internal/memdir/session_memory.go`
 - `StopHookRegistry` → `internal/bootstrap/wire.go`

@@ -2,13 +2,13 @@
 package: modeltier
 import_path: internal/modeltier
 layer: unknown
-generated_at: 2026-11-22T14:16:46Z
-source_files: [config.go, resolve.go, store.go]
+generated_at: 2026-11-23T07:05:36Z
+source_files: [config.go, credentials.go, providerid.go, resolve.go, store.go, store_provider.go]
 ---
 
 # internal/modeltier
 
-> Layer: **unknown** · Files: 3 · Interfaces: 0 · Structs: 8 · Functions: 3
+> Layer: **unknown** · Files: 6 · Interfaces: 0 · Structs: 8 · Functions: 9
 
 ## Structs
 
@@ -16,22 +16,31 @@ source_files: [config.go, resolve.go, store.go]
 - **Config** — 3 fields: Providers, Tiers, Main
 - **MainSection** — 1 fields: ContextWindow
 - **ModelInfo** — 2 fields: ContextWindow, MaxTokens
-- **Provider** — 4 fields: Format, BaseURL, APIKeyEnv, Models
-- **ProviderStatus** — 6 fields: ID, Format, BaseURL, APIKeyEnv, KeyPresent, Models
+- **Provider** — 5 fields: Format, BaseURL, APIKeyEnv, APIKeySource, Models
+- **ProviderStatus** — 7 fields: ID, Format, BaseURL, APIKeyEnv, KeySource, KeyPresent, Models
 - **Store** — 5 fields
 - **TierEntry** — 4 fields: Provider, Model, ContextWindow, MaxTokens
 
 ## Functions
 
+- `CheckCredentials(path string) error`
+- `DefaultCredentialsPath(homeDir string) string`
 - `DefaultPath(homeDir string) string`
 - `LegacyAlias(tier string) (string, bool)`
 - `Load(path string) (*Store, []string)`
+- `ReadCredential(path string, id string) (string, error)`
+- `ResolveKey(id string, p Provider, credPath string, getenv func(string) string) (key string, source string, err error)`
+- `ValidProviderID(id string) error`
+- `WriteCredential(path string, id string, key string) error`
 
 ## Constants
 
 - `Bound`
 - `FormatAnthropic`
 - `FormatOpenAI`
+- `KeySourceEnv`
+- `KeySourceNone`
+- `KeySourceStored`
 - `MainProviderID`
 - `NotTier`
 - `Unbound`
@@ -40,9 +49,10 @@ source_files: [config.go, resolve.go, store.go]
 
 **Exported type references (files that use types from this package):**
 - `Binding` → `internal/bootstrap/modelswitch.go`, `internal/bootstrap/tiers.go`, `internal/commands/tier.go`, `internal/commands/tier_test.go` (test), `internal/tui/tierpicker.go` + 2 more
-- `Provider` → `internal/bootstrap/tiers.go`, `internal/bootstrap/tiers_test.go` (test), `internal/commands/tier.go`, `internal/commands/tier_test.go` (test), `internal/tui/tierpicker.go` + 2 more
-- `ProviderStatus` → `internal/commands/tier.go`, `internal/commands/tier_test.go` (test), `internal/tui/tierpicker.go`, `internal/tui/tierpicker_test.go` (test), `internal/tui/tiers_test.go` (test)
-- `Store` → `internal/bootstrap/tiers.go`, `internal/bootstrap/wire.go`, `internal/commands/tier.go`, `internal/commands/tier_test.go` (test)
+- `ModelInfo` → `internal/bootstrap/provider.go`, `internal/bootstrap/provider_test.go` (test)
+- `Provider` → `internal/bootstrap/provider.go`, `internal/bootstrap/provider_test.go` (test), `internal/bootstrap/tiers.go`, `internal/bootstrap/tiers_router_test.go` (test), `internal/bootstrap/tiers_test.go` (test) + 6 more
+- `ProviderStatus` → `internal/commands/tier.go`, `internal/commands/tier_test.go` (test), `internal/tui/provider_dialog_test.go` (test), `internal/tui/tierpicker.go`, `internal/tui/tierpicker_test.go` (test) + 1 more
+- `Store` → `internal/bootstrap/provider.go`, `internal/bootstrap/tiers.go`, `internal/bootstrap/wire.go`, `internal/commands/tier.go`, `internal/commands/tier_test.go` (test)
 
 ## Dependencies
 

@@ -2,7 +2,7 @@
 package: main
 import_path: cmd/docgen
 layer: unknown
-generated_at: 2026-11-22T14:16:46Z
+generated_at: 2026-11-23T07:05:36Z
 source_files: [analyzer.go, dependency.go, impact.go, layer.go, main.go, renderer.go]
 ---
 

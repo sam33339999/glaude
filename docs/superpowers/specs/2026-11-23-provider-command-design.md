@@ -1,7 +1,7 @@
 # `/provider` 服務商管理指令 設計
 
 - 日期：2026-11-23
-- 狀態：草稿，待負責人核准（已過 builder check，2026-11-23）
+- 狀態：已核准並實作（2026-11-23，分支 `feat/provider-command`）。使用說明見 `docs/provider.md`。
 - 分支：`feat/provider-command`（從 `dev` 9143848 分出）
 - 相關：`docs/config-toml.md`、`docs/setup.md`、`docs/superpowers/specs/2026-11-19-provider-tiers-design.md`、`docs/superpowers/specs/2026-11-19-setup-wizard-design.md`
 

@@ -2,13 +2,13 @@
 package: commands
 import_path: internal/commands
 layer: cli
-generated_at: 2026-11-22T14:16:46Z
-source_files: [builtins.go, external.go, goal.go, loop.go, mcp.go, modelswitch.go, registry.go, resume.go, setup.go, soul.go, terminal_setup.go, tier.go]
+generated_at: 2026-11-23T07:05:36Z
+source_files: [builtins.go, external.go, goal.go, loop.go, mcp.go, modelswitch.go, provider.go, registry.go, resume.go, setup.go, soul.go, terminal_setup.go, tier.go]
 ---
 
 # internal/commands
 
-> Layer: **CLI** · Files: 12 · Interfaces: 5 · Structs: 15 · Functions: 13
+> Layer: **CLI** · Files: 13 · Interfaces: 6 · Structs: 19 · Functions: 13
 
 ## Interfaces
 
@@ -29,6 +29,21 @@ type ModelSwitcher interface {
     Options() []ModelOption
     Resolve(ref string) (ModelOption, error)
     Apply(opt ModelOption) error
+}
+```
+
+### ProviderBackend (7 methods)
+> ProviderBackend is what the /provider wizard needs from the outside
+
+```go
+type ProviderBackend interface {
+    List() []ProviderInfo
+    Warnings() []string
+    MainProvider() string
+    Writable() error
+    ListModels(ctx context.Context, in ProviderInput) ([]SetupModel, error)
+    Apply(ctx context.Context, plan ProviderPlan) (ProviderReport, error)
+    Delete(id string) (ProviderReport, error)
 }
 ```
 
@@ -77,6 +92,10 @@ type TierModelLister interface {
 - **GoalVerdict** — 2 fields: Met, Reason
 - **LoopSpec** — 4 fields: Action, Interval, DefaultInterval, Prompt
 - **ModelOption** — 8 fields: Name, Provider, Model, ContextWindow, MaxTokens, Available, Reason, Current
+- **ProviderInfo** — 8 fields: ID, Format, BaseURL, KeySource, KeyEnv, KeyPresent, Models, Tiers
+- **ProviderInput** — 5 fields: ID, Format, BaseURL, APIKey, NoKey
+- **ProviderPlan** — 4 fields: Input, IsNew, Models, Tiers
+- **ProviderReport** — 3 fields: MainSwitched, Unbound, Warnings
 - **Registry** — 2 fields
 - **Result** — 15 fields: Text, Display, ShouldExit, NewMessages, NewSessionID, NewTheme, NewModel, ModelRef, ...
 - **SessionSummary** — 5 fields: ID, Title, ModTime, MessageCount, Current
@@ -132,6 +151,7 @@ type TierModelLister interface {
 
 **Test Mocks (must add new methods when interfaces change):**
 - `stubRegistry` in `internal/permissions/checker_test.go`
+- `fakeProviderBackend` in `internal/tui/provider_dialog_test.go`
 - `fakeSetupBackend` in `internal/tui/setup_dialog_test.go`
 - `fakeTierManager` in `internal/tui/tierpicker_test.go`
 
@@ -143,13 +163,18 @@ type TierModelLister interface {
 - `MCPServerLister` → `internal/tui/cmds.go`, `internal/tui/init.go`, `internal/tui/mcp_resume_test.go` (test), `internal/tui/model.go`
 - `ModelOption` → `internal/bootstrap/modelswitch.go`, `internal/bootstrap/modelswitch_test.go` (test), `internal/tui/model.go`, `internal/tui/modelpicker.go`, `internal/tui/modelpicker_test.go` (test)
 - `ModelSwitcher` → `internal/bootstrap/modelswitch.go`, `internal/bootstrap/wire.go`, `internal/tui/init.go`, `internal/tui/model.go`, `internal/tui/modelpicker_test.go` (test)
+- `ProviderBackend` → `internal/bootstrap/provider.go`, `internal/bootstrap/wire.go`, `internal/tui/model.go`, `internal/tui/provider_dialog.go`, `internal/tui/provider_dialog_test.go` (test)
+- `ProviderInfo` → `internal/bootstrap/provider.go`, `internal/tui/provider_dialog_test.go` (test), `internal/tui/providerwizard.go`, `internal/tui/providerwizard_test.go` (test), `internal/tui/providerwizard_view.go`
+- `ProviderInput` → `internal/bootstrap/provider.go`, `internal/bootstrap/provider_test.go` (test), `internal/tui/provider_dialog_test.go` (test), `internal/tui/providerwizard.go`
+- `ProviderPlan` → `internal/bootstrap/provider.go`, `internal/bootstrap/provider_test.go` (test), `internal/tui/provider_dialog_test.go` (test), `internal/tui/providerwizard.go`
+- `ProviderReport` → `internal/bootstrap/provider.go`, `internal/tui/provider_dialog.go`, `internal/tui/provider_dialog_test.go` (test), `internal/tui/providerwizard.go`, `internal/tui/providerwizard_test.go` (test)
 - `Registry` → `internal/bootstrap/acp.go`, `internal/tui/completion.go`, `internal/tui/init.go`, `internal/tui/model.go`
 - `Result` → `internal/tui/autorun_test.go` (test), `internal/tui/bashmode_test.go` (test), `internal/tui/btw_send_test.go` (test), `internal/tui/btw_test.go` (test), `internal/tui/mcp_resume_test.go` (test) + 7 more
 - `SessionSummary` → `internal/tui/mcp_resume_test.go` (test), `internal/tui/resumepicker.go`
 - `SetupBackend` → `internal/bootstrap/setup.go`, `internal/bootstrap/wire.go`, `internal/tui/init.go`, `internal/tui/model.go`, `internal/tui/setup_dialog.go` + 1 more
 - `SetupDefaults` → `internal/bootstrap/setup.go`, `internal/tui/setup_dialog_test.go` (test), `internal/tui/setupwizard.go`, `internal/tui/setupwizard_test.go` (test)
 - `SetupInput` → `internal/bootstrap/setup.go`, `internal/bootstrap/setup_test.go` (test), `internal/tui/setup_dialog.go`, `internal/tui/setup_dialog_test.go` (test), `internal/tui/setupwizard.go`
-- `SetupModel` → `internal/bootstrap/setup.go`, `internal/bootstrap/tiers.go`, `internal/tui/setup_dialog.go`, `internal/tui/setup_dialog_test.go` (test), `internal/tui/setupwizard.go` + 4 more
+- `SetupModel` → `internal/bootstrap/provider.go`, `internal/bootstrap/provider_test.go` (test), `internal/bootstrap/setup.go`, `internal/bootstrap/tiers.go`, `internal/tui/modelchooser.go` + 12 more
 - `SetupPlan` → `internal/bootstrap/setup.go`, `internal/bootstrap/setup_test.go` (test), `internal/tui/setup_dialog.go`, `internal/tui/setup_dialog_test.go` (test), `internal/tui/setupwizard.go`
 - `SetupReport` → `internal/bootstrap/setup.go`, `internal/tui/setup_dialog.go`, `internal/tui/setup_dialog_test.go` (test), `internal/tui/setupwizard.go`, `internal/tui/setupwizard_test.go` (test) + 1 more
 - `TierManager` → `internal/bootstrap/tiers.go`, `internal/tui/init.go`, `internal/tui/model.go`, `internal/tui/tier_dialog.go`, `internal/tui/tierpicker.go`
