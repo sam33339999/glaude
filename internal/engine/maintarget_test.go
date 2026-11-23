@@ -2,7 +2,6 @@ package engine
 
 import (
 	"context"
-	"strings"
 	"sync"
 	"testing"
 
@@ -105,25 +104,6 @@ func thinkingMsg() types.Message {
 	}}
 }
 
-func TestSetMainTarget_StripsThinkingOnProviderChange(t *testing.T) {
-	eng := New(Config{Client: &countingClient{}, Registry: tools.NewRegistry(), Model: "m"})
-	onlyThinking := types.Message{Role: types.RoleAssistant, Content: []types.ContentBlock{{Type: types.ContentTypeThinking, Thinking: strPtr("x")}}}
-	eng.SetMessages([]types.Message{userText("q"), thinkingMsg(), userText("q2"), onlyThinking})
-
-	eng.SetMainTarget(MainTarget{Client: &countingClient{}, ProviderID: "main", Model: "m2"}) // same provider
-	if !hasThinking(eng.GetMessages()) {
-		t.Fatal("same provider must keep thinking blocks")
-	}
-	eng.SetMainTarget(MainTarget{Client: &countingClient{}, ProviderID: "zai", Model: "glm"})
-	msgs := eng.GetMessages()
-	if hasThinking(msgs) {
-		t.Error("thinking blocks kept after provider change")
-	}
-	if len(msgs) != 3 || !strings.Contains(*msgs[1].Content[0].Text, "answer") {
-		t.Errorf("history = %d msgs; text must survive and thinking-only messages dropped", len(msgs))
-	}
-}
-
 func hasThinking(msgs []types.Message) bool {
 	for _, m := range msgs {
 		for _, b := range m.Content {
@@ -154,53 +134,5 @@ func TestCacheSafeParams_CarriesLimits(t *testing.T) {
 	snap := uctx.CacheParams.(*CacheSafeParams)
 	if snap.ContextWindow != 131072 || snap.MaxTokens != 4096 {
 		t.Errorf("snapshot limits = %d/%d", snap.ContextWindow, snap.MaxTokens)
-	}
-}
-
-// Review #3: an interrupted loop writing back after a provider switch must
-// not resurrect thinking blocks.
-func TestSetMainTarget_WriteBackAfterSwitchStripsThinking(t *testing.T) {
-	release := make(chan struct{})
-	started := make(chan struct{})
-	a := &countingClient{}
-	a.streamFn = func(*api.MessageRequest) (api.StreamReader, error) {
-		close(started)
-		<-release
-		return newStaticReader(buildEndTurnEvents("done")...), nil
-	}
-	eng := New(Config{Client: a, Registry: tools.NewRegistry(), Model: "m"})
-	ch, err := eng.Query(context.Background(), QueryParams{
-		Messages:       []types.Message{userText("q"), thinkingMsg(), userText("q2")},
-		ToolUseContext: &tools.UseContext{Ctx: context.Background()},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	<-started
-	eng.SetMainTarget(MainTarget{Client: &countingClient{}, ProviderID: "zai", Model: "glm"})
-	close(release)
-	drainMsgs(ch)
-	if hasThinking(eng.GetMessages()) {
-		t.Error("write-back of the old loop resurrected thinking blocks after a provider switch")
-	}
-}
-
-func TestSetMainTargetStripThinkingFlag(t *testing.T) {
-	eng := New(Config{Client: &countingClient{}, Registry: tools.NewRegistry(), Model: "m"})
-	eng.SetMainTarget(MainTarget{Client: &countingClient{}, ProviderID: "zai", Model: "glm"})
-	eng.SetMessages([]types.Message{userText("q"), thinkingMsg(), userText("q2")})
-
-	// Same provider id, no flag: thinking kept.
-	eng.SetMainTarget(MainTarget{Client: &countingClient{}, ProviderID: "zai", Model: "glm"})
-	if !hasThinking(eng.GetMessages()) {
-		t.Fatal("thinking stripped without a provider change or flag")
-	}
-	// Same provider id with the flag (endpoint edited): stripped.
-	eng.SetMainTarget(MainTarget{Client: &countingClient{}, ProviderID: "zai", Model: "glm", StripThinking: true})
-	if hasThinking(eng.GetMessages()) {
-		t.Fatal("StripThinking did not strip thinking blocks")
-	}
-	if eng.MainTarget().StripThinking {
-		t.Fatal("StripThinking must not be stored in the target")
 	}
 }

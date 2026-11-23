@@ -87,6 +87,12 @@ type QueryParams struct {
 	// forked agents never set it, so their provider and prompt prefix are
 	// unchanged.
 	Client api.Client
+	// ThinkingOrigin is the thinking origin of the endpoint Client sends to
+	// (MainTarget.ThinkingOrigin). When set, thinking blocks from other
+	// origins are left out of the request and new ones are tagged with it.
+	// Empty with Client nil uses the main target's; empty with Client set
+	// leaves thinking unfiltered.
+	ThinkingOrigin string
 	// ContextWindow is the configured context window of this query's model
 	// (tier binding or provider model table). 0 resolves via the built-in
 	// table, or Config.MainContextWindow when the query runs on the main model.
@@ -183,11 +189,15 @@ type MainTarget struct {
 	ContextWindow int
 	// MaxTokens is the request max_tokens (0 → 8192).
 	MaxTokens int
-	// StripThinking asks SetMainTarget to drop thinking blocks from the
-	// history even when ProviderID is unchanged (the provider's endpoint was
-	// edited, so old signatures may be invalid). It is never stored.
-	StripThinking bool
+	// Endpoint describes where the provider sends (wire format and base
+	// URL); "" for the startup client. It is part of the thinking origin, so
+	// editing a provider's endpoint retires the thinking it produced.
+	Endpoint string
 }
+
+// ThinkingOrigin identifies the endpoint this target sends to, as recorded
+// on the thinking blocks it produces (types.ContentBlock.ThinkingOrigin).
+func (t MainTarget) ThinkingOrigin() string { return t.thinkingOrigin() }
 
 // Config is the constructor parameter bundle for New.
 type Config struct {
@@ -254,12 +264,14 @@ func (e *engineImpl) GetMessages() []types.Message {
 	return result
 }
 
-// SetMessages replaces the conversation history.
+// SetMessages replaces the conversation history. Thinking blocks of unknown
+// origin (older transcripts) are attributed to the current main target.
 func (e *engineImpl) SetMessages(messages []types.Message) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.messages = make([]types.Message, len(messages))
 	copy(e.messages, messages)
+	e.messages = stampUnknownThinking(e.messages, e.MainTarget().thinkingOrigin())
 }
 
 // Interrupt cancels the currently-running query (if any).
@@ -288,25 +300,16 @@ func (e *engineImpl) MainTarget() MainTarget {
 
 // SetMainTarget retargets the main loop (and every query without its own
 // Client/Model). Queries already running keep the snapshot they started
-// with. When the provider changes, thinking blocks are removed from the
-// history: their signatures are provider-specific, and the switch already
-// invalidates the prompt cache.
+// with. The history is left alone: thinking from another provider stays in
+// it (and in the transcript) and is only left out of requests (see
+// thinkingForRequest), so switching back can still send it.
 func (e *engineImpl) SetMainTarget(t MainTarget) {
 	if t.MaxTokens <= 0 {
 		t.MaxTokens = 8192
 	}
-	// Lock order e.mu → mainMu (shared with the loop write-back), so the new
-	// target and the stripped history become visible together.
-	e.mu.Lock()
-	defer e.mu.Unlock()
 	e.mainMu.Lock()
-	strip := t.ProviderID != e.main.ProviderID || t.StripThinking
-	t.StripThinking = false
+	defer e.mainMu.Unlock()
 	e.main = t
-	e.mainMu.Unlock()
-	if strip {
-		e.messages = stripThinking(e.messages)
-	}
 }
 
 // currentModel returns the main loop's model.
@@ -314,21 +317,3 @@ func (e *engineImpl) currentModel() string {
 	return e.MainTarget().Model
 }
 
-// stripThinking removes thinking blocks; assistant messages left empty are dropped.
-func stripThinking(msgs []types.Message) []types.Message {
-	out := make([]types.Message, 0, len(msgs))
-	for _, m := range msgs {
-		kept := make([]types.ContentBlock, 0, len(m.Content))
-		for _, b := range m.Content {
-			if b.Type != types.ContentTypeThinking {
-				kept = append(kept, b)
-			}
-		}
-		if len(kept) == 0 && m.Role == types.RoleAssistant && len(m.Content) > 0 {
-			continue
-		}
-		m.Content = kept
-		out = append(out, m)
-	}
-	return out
-}

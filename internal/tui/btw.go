@@ -110,24 +110,25 @@ func parseBTW(args string) (tier, question string, err error) {
 	return "", "", errors.New("usage: /btw [--tier <name>] <question>")
 }
 
-// btwContext returns the prefix (system prompt, history) and target to use:
-// the running main request's snapshot while the main loop works, otherwise
-// the written-back history and the stable system prompt.
-func (m *AppModel) btwContext() (engine.SystemPrompt, []types.Message, engine.MainTarget) {
+// btwContext returns the prefix (system prompt, history), target and
+// thinking origin to use: the running main request's snapshot while the main
+// loop works, otherwise the written-back history and the stable system prompt.
+func (m *AppModel) btwContext() (engine.SystemPrompt, []types.Message, engine.MainTarget, string) {
 	mt := m.queryEngine.MainTarget()
 	if m.isLoading && m.mainSnap != nil {
 		if snap, ok := m.mainSnap.Load().(*engine.CacheSafeParams); ok && snap != nil {
 			t := engine.MainTarget{Client: snap.Client, Model: snap.Model, ContextWindow: snap.ContextWindow, MaxTokens: snap.MaxTokens}
+			origin := snap.ThinkingOrigin
 			if t.Client == nil {
-				t.Client = mt.Client
+				t.Client, origin = mt.Client, mt.ThinkingOrigin()
 			}
 			if t.Model == "" {
 				t.Model = mt.Model
 			}
-			return snap.SystemPrompt, append([]types.Message(nil), snap.ContextMessages...), t
+			return snap.SystemPrompt, append([]types.Message(nil), snap.ContextMessages...), t, origin
 		}
 	}
-	return buildMainSystemPrompt(m), m.queryEngine.GetMessages(), mt
+	return buildMainSystemPrompt(m), m.queryEngine.GetMessages(), mt, mt.ThinkingOrigin()
 }
 
 // startBTW handles "/btw ..." — it runs immediately, even while the main loop
@@ -140,7 +141,7 @@ func (m AppModel) startBTW(args string) (AppModel, tea.Cmd) {
 	if m.btw != nil && m.btw.status == btwRunning {
 		return m.systemError("Error: a /btw is already running (Esc to stop it)."), nil
 	}
-	sys, history, target := m.btwContext()
+	sys, history, target, origin := m.btwContext()
 	label := "main · " + target.Model
 	if tier != "" {
 		if m.btwTarget == nil {
@@ -150,7 +151,7 @@ func (m AppModel) startBTW(args string) (AppModel, tea.Cmd) {
 		if err != nil {
 			return m.systemError("Error: " + err.Error()), nil
 		}
-		target, label = t, tier+" · "+t.Model
+		target, label, origin = t, tier+" · "+t.Model, t.ThinkingOrigin()
 	}
 	exp := m.pastes.expand(question)
 	q := types.Message{Role: types.RoleUser, Content: contentWithImages(exp.Images, exp.Text+btwNote)}
@@ -163,7 +164,7 @@ func (m AppModel) startBTW(args string) (AppModel, tea.Cmd) {
 	params := engine.QueryParams{
 		Messages: append(history, q), SystemPrompt: sys, QuerySource: "btw",
 		NoWriteBack: true, MaxTurns: btwMaxTurns,
-		Client: target.Client, Model: target.Model, ContextWindow: target.ContextWindow, MaxOutputTokensOverride: target.MaxTokens,
+		Client: target.Client, ThinkingOrigin: origin, Model: target.Model, ContextWindow: target.ContextWindow, MaxOutputTokensOverride: target.MaxTokens,
 		CompactTracker: compact.NewTracker(), NoCompaction: true, NonInteractivePermissions: true, ToolFilter: btwToolFilter,
 		ToolUseContext: &tools.UseContext{Ctx: ctx, TodoAppendOnly: true, WorkingDir: m.appState.GetState().WorkingDir},
 	}

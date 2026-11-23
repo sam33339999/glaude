@@ -153,5 +153,5 @@ func (e *engineImpl) retryWithoutImages(
 	case <-ctx.Done():
 		return types.Message{}, nil, "", api.Usage{}, ctx.Err()
 	}
-	return e.streamResponse(ctx, client, req, msgCh)
+	return e.streamResponse(ctx, client, req, params.ThinkingOrigin, msgCh)
 }

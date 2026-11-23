@@ -786,7 +786,7 @@ func buildForkQuery(
 	}
 	// The fork runs on exactly the client and model of the parent request it
 	// copies (cache identity); without a snapshot, on the main target now.
-	model, client := main.Model, main.Client
+	model, client, origin := main.Model, main.Client, main.ThinkingOrigin()
 	window, maxTokens := main.ContextWindow, main.MaxTokens
 	var prefix []types.Message
 	if cache, ok := req.CacheParams.(*engine.CacheSafeParams); ok && cache != nil {
@@ -796,7 +796,7 @@ func buildForkQuery(
 			model = cache.Model
 		}
 		if cache.Client != nil {
-			client = cache.Client
+			client, origin = cache.Client, cache.ThinkingOrigin
 			window, maxTokens = cache.ContextWindow, cache.MaxTokens
 		}
 	}
@@ -819,6 +819,8 @@ func buildForkQuery(
 		Model:        model,
 		Client:       client,
 		NoWriteBack:  true,
+
+		ThinkingOrigin: origin,
 
 		ContextWindow:           window,
 		MaxOutputTokensOverride: maxTokens,

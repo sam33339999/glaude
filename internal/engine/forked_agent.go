@@ -30,6 +30,11 @@ type CacheSafeParams struct {
 	// (and its resumes) keep them after /model switches the main loop.
 	ContextWindow int
 	MaxTokens     int
+	// ThinkingOrigin is the parent request's thinking origin. ContextMessages
+	// already leave out thinking from other origins; a fork that keeps Client
+	// passes it on as QueryParams.ThinkingOrigin (without Client, the fork
+	// runs on the main target and uses its origin).
+	ThinkingOrigin string
 }
 
 // ForkedAgentConfig configures a background forked agent.

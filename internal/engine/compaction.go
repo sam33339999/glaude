@@ -157,7 +157,7 @@ func (e *engineImpl) runCompaction(ctx context.Context, params QueryParams, mt M
 		if params.Client != nil && e.debugLogf != nil {
 			e.debugLogf("compaction for tiered sub-agent: model=%s window=%d", tgt.Model, tgt.Window())
 		}
-		if result, err := e.autoCompactor.Compact(ctx, messages, compactParams, tgt, tracker); err == nil {
+		if result, err := e.autoCompactor.Compact(ctx, thinkingForRequest(messages, params.ThinkingOrigin), compactParams, tgt, tracker); err == nil {
 			messages, rewritten = result.SummaryMessages, true
 			tracker.RecordPostCompact(e.estimatePrompt(params, messages, promptUsage{}))
 		}
