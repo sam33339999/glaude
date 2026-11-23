@@ -145,7 +145,7 @@ func TestApplyEditSwitchesMainKeepsModel(t *testing.T) {
 	if err := f.sw.Apply(optionNamed(f.sw.Options(), "lite")); err != nil { // main → zai:glm-5.3-flash
 		t.Fatal(err)
 	}
-	old := f.eng.main.Client
+	old, oldOrigin := f.eng.main.Client, f.eng.main.ThinkingOrigin()
 	plan := commands.ProviderPlan{
 		Input:  commands.ProviderInput{ID: "zai", Format: commands.SetupFormatOpenAI, BaseURL: "https://api.z.ai/api/paas/v4", APIKey: "sk-rotated"},
 		Models: []commands.SetupModel{{ID: "glm-5.3-flash"}, {ID: "m2"}},
@@ -158,25 +158,29 @@ func TestApplyEditSwitchesMainKeepsModel(t *testing.T) {
 	if !rep.MainSwitched || f.eng.main.Client == old || f.eng.main.Model != "glm-5.3-flash" || f.eng.main.ProviderID != "zai" {
 		t.Fatalf("report %+v, main = %+v", rep, f.eng.main)
 	}
-	if f.eng.main.StripThinking {
-		t.Error("key-only edit must not strip thinking")
+	if f.eng.main.ThinkingOrigin() != oldOrigin {
+		t.Error("key-only edit must keep the thinking origin")
 	}
 	if got := f.app.GetState().MainLoopModel; got.ModelID != "glm-5.3-flash" || got.Provider != "openai" {
 		t.Errorf("MainLoopModel = %+v", got)
 	}
 }
 
-func TestApplyEditBaseURLStripsThinking(t *testing.T) {
+func TestApplyEditBaseURLChangesThinkingOrigin(t *testing.T) {
 	f := newProviderFixture(t)
 	if err := f.sw.Apply(optionNamed(f.sw.Options(), "lite")); err != nil {
 		t.Fatal(err)
+	}
+	oldOrigin := f.eng.main.ThinkingOrigin()
+	if f.eng.main.Endpoint == "" {
+		t.Fatal("/model to a config provider must set its endpoint")
 	}
 	plan := commands.ProviderPlan{Input: commands.ProviderInput{ID: "zai", Format: commands.SetupFormatAnthropic, BaseURL: "https://other"}}
 	if _, err := f.b.Apply(context.Background(), plan); err != nil {
 		t.Fatal(err)
 	}
-	if !f.eng.lastSetStrip {
-		t.Fatal("endpoint change should strip thinking")
+	if f.eng.main.ThinkingOrigin() == oldOrigin {
+		t.Fatal("endpoint change must change the thinking origin")
 	}
 	if got := f.app.GetState().MainLoopModel.Provider; got != "direct" {
 		t.Errorf("MainLoopModel.Provider = %q, want direct", got)

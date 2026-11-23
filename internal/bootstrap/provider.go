@@ -164,7 +164,7 @@ func (b *providerBackend) Apply(_ context.Context, plan commands.ProviderPlan) (
 		report.Warnings = append(report.Warnings, fmt.Sprintf("provider %s is saved but not usable yet: %v", id, err))
 	}
 	if cur := b.eng.MainTarget(); cur.ProviderID == id {
-		b.switchMain(cur, old, p, in.Format, &report)
+		b.switchMain(cur, p, in.Format, &report)
 	}
 	for _, tier := range []string{"lite", "pro", "max"} {
 		if model, ok := plan.Tiers[tier]; ok && model != "" {
@@ -177,8 +177,8 @@ func (b *providerBackend) Apply(_ context.Context, plan commands.ProviderPlan) (
 }
 
 // switchMain moves the main loop to provider id's new client, keeping its
-// model ID. Thinking blocks are stripped when the endpoint changed.
-func (b *providerBackend) switchMain(cur engine.MainTarget, old, p modeltier.Provider, wireFormat string, report *commands.ProviderReport) {
+// model ID.
+func (b *providerBackend) switchMain(cur engine.MainTarget, p modeltier.Provider, wireFormat string, report *commands.ProviderReport) {
 	client, err := b.router.client(cur.ProviderID)
 	if err != nil {
 		report.Warnings = append(report.Warnings, fmt.Sprintf("the main loop keeps its previous settings: %v", err))
@@ -194,7 +194,9 @@ func (b *providerBackend) switchMain(cur engine.MainTarget, old, p modeltier.Pro
 			next.MaxTokens = info.MaxTokens
 		}
 	}
-	next.StripThinking = old.Format != p.Format || old.BaseURL != p.BaseURL
+	// A changed endpoint changes the thinking origin, so requests stop
+	// sending the thinking the old endpoint signed.
+	next.Endpoint = providerEndpoint(p)
 	b.eng.SetMainTarget(next)
 	if b.app != nil {
 		b.app.SetState(func(st state.AppState) state.AppState {

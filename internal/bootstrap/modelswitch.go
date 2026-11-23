@@ -166,7 +166,7 @@ func (s *modelSwitcher) Apply(o commands.ModelOption) error {
 		return err
 	}
 	s.eng.SetMainTarget(engine.MainTarget{
-		Client: client, ProviderID: o.Provider, Model: o.Model,
+		Client: client, ProviderID: o.Provider, Endpoint: s.endpointOf(o.Provider), Model: o.Model,
 		ContextWindow: o.ContextWindow, MaxTokens: o.MaxTokens,
 	})
 	format := s.formatOf(o.Provider)
@@ -201,6 +201,24 @@ func (s *modelSwitcher) formatOf(provider string) string {
 	return string(api.ProviderDirect)
 }
 
+// endpointOf returns the engine Endpoint of a provider id ("" for the
+// startup client or an unknown provider).
+func (s *modelSwitcher) endpointOf(provider string) string {
+	if provider == modeltier.MainProviderID || s.router == nil {
+		return ""
+	}
+	if p, ok := s.router.store.Provider(provider); ok {
+		return providerEndpoint(p)
+	}
+	return ""
+}
+
+// providerEndpoint is the engine Endpoint of a config.toml provider: what a
+// thinking signature is bound to.
+func providerEndpoint(p modeltier.Provider) string {
+	return p.Format + " " + p.BaseURL
+}
+
 // mainWireFormat returns the startup main loop's wire format for alias rules.
 func mainWireFormat(settings *config.LayeredSettings) string {
 	if strings.EqualFold(resolveProviderName(settings), string(api.ProviderOpenAI)) {
@@ -227,7 +245,7 @@ func (s *modelSwitcher) TargetFor(ref string) (engine.MainTarget, error) {
 	if err != nil {
 		return engine.MainTarget{}, err
 	}
-	return engine.MainTarget{Client: client, ProviderID: o.Provider, Model: o.Model, ContextWindow: o.ContextWindow, MaxTokens: o.MaxTokens}, nil
+	return engine.MainTarget{Client: client, ProviderID: o.Provider, Endpoint: s.endpointOf(o.Provider), Model: o.Model, ContextWindow: o.ContextWindow, MaxTokens: o.MaxTokens}, nil
 }
 
 // btwTargetFn adapts the container's ModelSwitcher for /btw --tier.

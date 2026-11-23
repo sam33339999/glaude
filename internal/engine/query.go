@@ -85,24 +85,19 @@ func (e *engineImpl) runQueryLoop(ctx context.Context, params QueryParams, msgCh
 	// The main target is fixed for the whole loop: /model switches apply to
 	// the next query, never in the middle of one.
 	mt := e.MainTarget()
+	// Fix the loop's thinking origin with its target: requests leave out
+	// thinking from other origins, and responses are tagged with this one.
+	params.ThinkingOrigin = queryOrigin(params, mt)
 
 	defer func() {
 		if params.NoWriteBack {
 			return
 		}
-		// Lock order e.mu → mainMu (same as SetMainTarget). If /model moved
-		// the main loop to another provider while this loop ran (e.g. right
-		// after Esc), strip thinking blocks again before writing back.
+		// Thinking is written back as is, whatever provider the main loop
+		// is on now: requests filter it, the history keeps it.
 		e.mu.Lock()
-		e.mainMu.RLock()
-		switched := e.main.ProviderID != mt.ProviderID
-		e.mainMu.RUnlock()
-		out := messages
-		if switched {
-			out = stripThinking(messages)
-		}
-		e.messages = make([]types.Message, len(out))
-		copy(e.messages, out)
+		e.messages = make([]types.Message, len(messages))
+		copy(e.messages, messages)
 		e.mu.Unlock()
 	}()
 
@@ -145,7 +140,8 @@ func (e *engineImpl) runQueryLoop(ctx context.Context, params QueryParams, msgCh
 		// Taken after compaction and inbox drain so it matches the request
 		// prefix; refreshed every turn so forks inherit the latest history.
 		if params.ToolUseContext != nil {
-			snap := CreateCacheSafeParams(params, messages)
+			snap := CreateCacheSafeParams(params, thinkingForRequest(messages, params.ThinkingOrigin))
+			snap.ThinkingOrigin = params.ThinkingOrigin
 			snap.Model = activeModel
 			snap.Client = client
 			limits := targetFor(params, mt)
@@ -171,7 +167,7 @@ func (e *engineImpl) runQueryLoop(ctx context.Context, params QueryParams, msgCh
 
 		// Stream the LLM response.
 		reqMsgCount := len(messages)
-		assistantMsg, toolCalls, stopReason, usage, streamErr := e.streamResponse(ctx, client, req, msgCh)
+		assistantMsg, toolCalls, stopReason, usage, streamErr := e.streamResponse(ctx, client, req, params.ThinkingOrigin, msgCh)
 		if streamErr != nil && e.shouldRetryWithoutImages(streamErr, messages, activeModel) {
 			assistantMsg, toolCalls, stopReason, usage, streamErr = e.retryWithoutImages(ctx, client, params, messages, activeModel, mt.MaxTokens, msgCh)
 		}
@@ -192,7 +188,7 @@ func (e *engineImpl) runQueryLoop(ctx context.Context, params QueryParams, msgCh
 				case <-ctx.Done():
 					return
 				}
-				assistantMsg, toolCalls, stopReason, usage, streamErr = e.streamResponse(ctx, client, fallbackReq, msgCh)
+				assistantMsg, toolCalls, stopReason, usage, streamErr = e.streamResponse(ctx, client, fallbackReq, params.ThinkingOrigin, msgCh)
 			}
 			if streamErr != nil {
 				sendError(ctx, msgCh, streamErr)
@@ -295,6 +291,7 @@ func (e *engineImpl) streamResponse(
 	ctx context.Context,
 	client api.Client,
 	req *api.MessageRequest,
+	origin string,
 	msgCh chan<- Msg,
 ) (types.Message, []toolCall, string, api.Usage, error) {
 	reader, err := api.WithRetry(ctx, func(ctx context.Context, _ int) (api.StreamReader, error) {
@@ -416,6 +413,7 @@ func (e *engineImpl) streamResponse(
 
 	// Build the assistant message and emit it.
 	assistantMsg := buildAssistantMessage(result)
+	stampThinking(&assistantMsg, origin)
 	select {
 	case msgCh <- Msg{Type: MsgTypeAssistantMessage, AssistantMsg: &assistantMsg}:
 	case <-ctx.Done():
@@ -468,6 +466,7 @@ func (e *engineImpl) buildRequestWithModel(params QueryParams, messages []types.
 // buildRequest builds the API request with an explicit default max_tokens
 // (the loop's MainTarget snapshot).
 func (e *engineImpl) buildRequest(params QueryParams, messages []types.Message, model string, defaultMaxTokens int) (*api.MessageRequest, error) {
+	messages = thinkingForRequest(messages, params.ThinkingOrigin)
 	if e.imagesRejected(model) {
 		messages = stripImages(messages)
 	}
@@ -489,9 +488,8 @@ func (e *engineImpl) buildRequest(params QueryParams, messages []types.Message, 
 	// shared history free of stale markers (they move every turn).
 	apiMessages := make([]api.MessageParam, 0, len(messages))
 	for i, m := range messages {
-		content := m.Content
+		content := types.WireContent(m.Content)
 		if i == lastUserIdx && !params.SkipCacheWrite && len(content) > 0 {
-			content = append([]types.ContentBlock(nil), content...)
 			content[len(content)-1].CacheControl = &types.CacheControl{Type: "ephemeral"}
 		}
 		raw, err := json.Marshal(content)

@@ -1175,7 +1175,7 @@ func TestStreamResponse_ReadError(t *testing.T) {
 	eng := New(Config{Client: client, Registry: tools.NewRegistry()}).(*engineImpl)
 	req := &api.MessageRequest{Model: "m", MaxTokens: 100}
 	ch := make(chan Msg, 32)
-	_, _, _, _, err := eng.streamResponse(context.Background(), eng.MainTarget().Client, req, ch)
+	_, _, _, _, err := eng.streamResponse(context.Background(), eng.MainTarget().Client, req, "", ch)
 	if err == nil {
 		t.Fatal("expected error from streamResponse")
 	}

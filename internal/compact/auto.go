@@ -256,7 +256,7 @@ func extractTextFromResponse(resp *api.MessageResponse) string {
 func messagesToAPIParams(messages []types.Message) ([]api.MessageParam, error) {
 	params := make([]api.MessageParam, 0, len(messages))
 	for _, m := range messages {
-		raw, err := json.Marshal(m.Content)
+		raw, err := json.Marshal(types.WireContent(m.Content))
 		if err != nil {
 			return nil, err
 		}

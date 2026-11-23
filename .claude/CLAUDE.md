@@ -24,7 +24,6 @@
 ### 待处理问题（改相关代码前先看）
 
 - **记忆萃取每轮重送整段历史（token 成本）**：`extract_memories` stop hook 每个 `end_turn` 都跑，fork 带完整 `ContextMessages`、最多 3 回合、无节流。临时缓解 `autoMemoryEnabled: false`。详见 [`docs/project/discussions/2026-11-21-memory-extract-token-cost.md`](docs/project/discussions/2026-11-21-memory-extract-token-cost.md)（另开分支处理）。
-- **切换服务商清 thinking 导致 transcript 漏写**：`SetMainTarget` 的 `stripThinking` 会删掉只有 thinking 的 assistant 消息，`Recorder.Record` 按索引记进度而错位，下一轮前 k 条消息不落盘（已用测试重现）。thinking 要保留落地，修法方向是改在组请求时过滤。详见 [`docs/project/discussions/2026-11-23-strip-thinking-transcript-gap.md`](docs/project/discussions/2026-11-23-strip-thinking-transcript-gap.md)（分支 `fix/strip-thinking-transcript`）。
 
 ## Environment Setup
 

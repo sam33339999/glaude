@@ -53,6 +53,22 @@ type ContentBlock struct {
 	// thinking
 	Thinking  *string `json:"thinking,omitempty"`
 	Signature *string `json:"signature,omitempty"`
+	// ThinkingOrigin names the provider endpoint that produced a thinking
+	// block (its signature is only valid there). It is kept in history and
+	// transcripts but is local-only: WireContent clears it before a request.
+	// Empty means unknown (transcripts written before the field existed).
+	ThinkingOrigin string `json:"thinking_origin,omitempty"`
+}
+
+// WireContent returns blocks ready for an API request: a copy with the
+// local-only ThinkingOrigin cleared. The input is never mutated.
+func WireContent(blocks []ContentBlock) []ContentBlock {
+	out := make([]ContentBlock, len(blocks))
+	copy(out, blocks)
+	for i := range out {
+		out[i].ThinkingOrigin = ""
+	}
+	return out
 }
 
 // ImageSource describes the source of an image content block.

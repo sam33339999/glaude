@@ -1,7 +1,7 @@
 # 切換服務商時清除 thinking，導致 transcript 漏寫訊息
 
 > 日期：2026-11-23
-> 狀態：**待處理**（分支 `fix/strip-thinking-transcript`；本文只記錄問題與修法方向）
+> 狀態：**已修正**（分支 `fix/strip-thinking-transcript`，做法見文末「修正內容」）
 > 發現於：確認「thinking 是否寫進 jsonl」時，順著 `/model` 切換的程式碼路徑追到
 
 ## 背景：thinking 有落地，而且應該維持
@@ -94,3 +94,20 @@ want:        [u1 [thinking] u2 a2 u3 a3]   ← u3 遺失
 - `internal/bootstrap/modelswitch.go`（`/model` 的 `Apply`）
 - `internal/bootstrap/provider.go`（`/provider` 的 `switchMain`）
 - `pkg/types/message.go`（`ContentBlock`）
+
+## 修正內容（2026-11-23）
+
+照「建議」方向實作：歷史不再被修改，thinking 只在組請求時過濾。
+
+- **來源欄位**：`types.ContentBlock.ThinkingOrigin`（JSON `thinking_origin`），會寫進 jsonl。值是服務商 ID；有端點資訊時再加上 `Format + BaseURL` 的短雜湊（`zai@1a2b3c4d`），所以用 `/provider` 改了端點，舊的 thinking 也會失效。取代原本的 `MainTarget.StripThinking`，改成 `MainTarget.Endpoint`（`/model` 的 `Apply`／`TargetFor`、`/provider` 的 `switchMain` 會填）。
+- **標記**：`streamResponse` 收到回應後，把 thinking 標上這次查詢的來源（`QueryParams.ThinkingOrigin`，主迴圈開跑時固定）。舊 jsonl 沒有來源，`SetMessages`（resume）時當成目前主目標產生的。
+- **過濾點**：`thinkingForRequest`（`internal/engine/thinking.go`）會濾掉其他來源的 thinking，濾完變空的 assistant 訊息只在請求裡省略，前後兩則 user 會合併，讓角色維持交替。會用到它的有：
+  - `buildRequest`（主迴圈、fallback、去圖重送）
+  - auto compact 的摘要輸入
+  - fork 快照 `CacheSafeParams.ContextMessages`（快照另外帶 `ThinkingOrigin`）
+  - `/btw`（含 `--tier`）
+- **wire 清理**：`types.WireContent` 在送出前清掉 `thinking_origin`。`buildRequest` 和 compact 的 `messagesToAPIParams` 都會經過這一步。
+- **不變的地方**：用 tier client 的子代理（`QueryParams.Client` 有設定、來源未知）不過濾也不標記，跟以前一樣。它們的歷史從零開始，不含主對話的 thinking。
+- **回歸測試**：`internal/engine/thinking_test.go` 的 `TestProviderSwitch_TranscriptKeepsEveryMessage` 把 engine 和 recorder 串起來，重現本文的情境。把舊的刪除行為塞回去時，這個測試會失敗（`jsonl = [u1 [thinking] u2 a2]`）。
+
+`redacted_thinking` 沒有一起修：`internal/api` 的累加器和 `api.ContentBlock` 都沒有 `data` 欄位，要從串流解析那一層開始補，留給另一個分支處理。
