@@ -11,8 +11,9 @@ import (
 	"github.com/tunsuy/glaude/internal/state"
 )
 
-// modelPicker is the /model menu: "default" plus the tiers. Unavailable
-// rows are shown with their reason and skipped by the cursor.
+// modelPicker is the /model menu: "default", the tiers, then one section
+// per provider listing its models table. Unavailable rows are greyed and
+// skipped by the cursor.
 type modelPicker struct {
 	opts   []commands.ModelOption
 	cursor int
@@ -58,25 +59,31 @@ type pickerEntry struct {
 	opt  int
 }
 
-// lines renders every menu line, with a header before each provider group.
-func (p *modelPicker) lines(theme Theme) []pickerEntry {
+// lines renders every menu line, each truncated to inner columns so no line
+// wraps, with a header before each provider group. A provider whose models
+// are all unavailable shows the reason once, on its header.
+func (p *modelPicker) lines(inner int, theme Theme) []pickerEntry {
 	var out []pickerEntry
 	group := ""
 	for i, o := range p.opts {
 		if o.Group != "" && o.Group != group {
-			out = append(out, pickerEntry{text: mutedStyle(theme).Render("── " + o.Group + " ──"), opt: -1})
+			header := "── " + o.Group + " ──"
+			if o.Model != "" && !o.Available {
+				header += "  " + o.Reason
+			}
+			out = append(out, pickerEntry{text: mutedStyle(theme).Render(truncateWidth(header, inner)), opt: -1})
 		}
 		group = o.Group
-		out = append(out, pickerEntry{text: p.optionLine(i, o, theme), opt: i})
+		out = append(out, pickerEntry{text: p.optionLine(i, o, inner, theme), opt: i})
 	}
 	return out
 }
 
-func (p *modelPicker) optionLine(i int, o commands.ModelOption, theme Theme) string {
+func (p *modelPicker) optionLine(i int, o commands.ModelOption, inner int, theme Theme) string {
 	var label string
 	switch {
 	case o.Group != "" && o.Model == "":
-		return mutedStyle(theme).Render("  " + o.Reason)
+		return mutedStyle(theme).Render(truncateWidth("  "+o.Reason, inner))
 	case o.Group != "":
 		label = o.Label()
 	default:
@@ -86,8 +93,11 @@ func (p *modelPicker) optionLine(i int, o commands.ModelOption, theme Theme) str
 		label += "  " + compactCount(o.ContextWindow)
 	}
 	switch {
+	case !o.Available && o.Group != "":
+		// The reason is on the group header.
+		return mutedStyle(theme).Render(truncateWidth("  "+label+"  (unavailable)", inner))
 	case !o.Available:
-		return mutedStyle(theme).Render("  " + label + "  (" + o.Reason + ")")
+		return mutedStyle(theme).Render(truncateWidth("  "+label+"  ("+o.Reason+")", inner))
 	case i == p.cursor:
 		line := "❯ " + label
 		if o.Current {
@@ -104,8 +114,8 @@ func (p *modelPicker) optionLine(i int, o commands.ModelOption, theme Theme) str
 
 // view renders the menu, scrolled so the cursor stays visible within maxHeight.
 func (p *modelPicker) view(width, maxHeight int, theme Theme) string {
-	entries := p.lines(theme)
-	rows := max(maxHeight-8, 3) // title, blanks, help, ↑/↓ and the box border
+	entries := p.lines(max(width-4, 10), theme) // border + padding
+	rows := max(maxHeight-8, 3)                 // title, blanks, help, ↑/↓ and the box border
 	cur := 0
 	for i, e := range entries {
 		if e.opt == p.cursor {
@@ -113,14 +123,8 @@ func (p *modelPicker) view(width, maxHeight int, theme Theme) string {
 		}
 	}
 	start := 0
-	if len(entries) > rows {
-		if cur >= rows {
-			start = cur - rows + 1
-		}
-		// Keep the group header of the cursor's group when it fits.
-		if start > 0 && start == cur && entries[start-1].opt == -1 {
-			start--
-		}
+	if len(entries) > rows && cur >= rows {
+		start = cur - rows + 1
 	}
 	end := min(start+rows, len(entries))
 	hidden := func(es []pickerEntry) int {

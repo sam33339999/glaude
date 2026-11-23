@@ -33,7 +33,8 @@ func (o ModelOption) Label() string {
 // ModelSwitcher switches the main loop between the startup model and tier
 // targets for the rest of the session. bootstrap implements it.
 type ModelSwitcher interface {
-	// Options lists "default" followed by the tiers.
+	// Options lists "default", the tiers, then each provider's models table
+	// (Group = provider id).
 	Options() []ModelOption
 	// Resolve maps an option name, legacy alias, providerID:modelID, or a
 	// model ID on the current provider to an option without applying it.

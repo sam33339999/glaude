@@ -97,3 +97,19 @@ func TestModelPicker_ConfirmTitleWithoutName(t *testing.T) {
 		t.Fatalf("confirm:\n%s", v)
 	}
 }
+
+func TestModelPicker_UnavailableProviderFitsHeight(t *testing.T) {
+	sw := newSwitcher()
+	reason := "credentials.json has no key for provider kimi; re-enter it with /provider: modeltier: credential not found"
+	for i := range 8 {
+		sw.opts = append(sw.opts, commands.ModelOption{Group: "kimi", Provider: "kimi", Model: fmt.Sprintf("k-%d", i), Reason: reason})
+	}
+	p := newModelPicker(sw.opts)
+	v := p.view(80, 20, DefaultDarkTheme)
+	if lines := strings.Count(v, "\n") + 1; lines > 20 {
+		t.Fatalf("view is %d lines, want ≤ 20:\n%s", lines, v)
+	}
+	if n := strings.Count(v, "credentials.json"); n != 1 {
+		t.Errorf("reason shown %d times, want once (on the group header):\n%s", n, v)
+	}
+}

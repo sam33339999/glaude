@@ -2,7 +2,7 @@
 package: config
 import_path: internal/config
 layer: infra
-generated_at: 2026-11-23T07:58:32Z
+generated_at: 2026-11-23T08:02:40Z
 source_files: [loader.go, mainmodel.go, mcpflag.go, mcpstore.go, orderedjson.go, pluginstore.go, settings.go, writer.go]
 ---
 
