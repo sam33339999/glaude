@@ -288,6 +288,84 @@ func renderMessageListLayout(messages []types.Message, opts renderOptions, cache
 	return sb.String(), refs, userLines
 }
 
+// lineBuilder accumulates text as lines without building one big string.
+// Writing pieces p1, p2, … then calling finish yields exactly
+// strings.Split(strings.TrimRight(p1+p2+…, "\n"), "\n").
+type lineBuilder struct {
+	lines   []string // completed lines
+	pending string   // the current, unterminated line
+}
+
+// write appends a piece given as strings.Split(piece, "\n").
+func (b *lineBuilder) write(segs []string) {
+	b.pending += segs[0]
+	if len(segs) == 1 {
+		return
+	}
+	b.lines = append(b.lines, b.pending)
+	b.lines = append(b.lines, segs[1:len(segs)-1]...)
+	b.pending = segs[len(segs)-1]
+}
+
+// newlines reports how many newlines have been written: the line index of
+// the next character.
+func (b *lineBuilder) newlines() int { return len(b.lines) }
+
+// finish returns the lines with trailing empty lines dropped (always at
+// least one line).
+func (b *lineBuilder) finish() []string {
+	lines := append(b.lines, b.pending)
+	for len(lines) > 1 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+	return lines
+}
+
+var newlineSegs = []string{"", ""}
+
+// renderMessageListLines renders header followed by the message list as
+// lines — the same lines as splitting header+renderMessageListLayout's
+// output with trailing newlines trimmed — plus code block headers and user
+// turn starts as line indices counted from the top of the header.
+//
+// Unlike renderMessageListLayout it never joins the history into one string:
+// cached messages contribute their pre-split lines, so a re-render while the
+// tail streams costs copying line headers, not re-scanning every byte.
+func renderMessageListLines(header string, messages []types.Message, opts renderOptions, cache *messageRenderCache) ([]string, []codeBlockRef, []int) {
+	lookups := buildMessageLookups(messages)
+	var b lineBuilder
+	if header != "" {
+		b.write(strings.Split(header, "\n"))
+	}
+	var refs []codeBlockRef
+	var userLines []int
+	for i, msg := range messages {
+		var segs []string
+		var msgRefs []codeBlockRef
+		if cache != nil {
+			segs, msgRefs = cache.renderLines(i, msg, opts, lookups)
+		} else {
+			var out string
+			out, msgRefs = renderMessageRefs(msg, opts, lookups)
+			segs = strings.Split(out, "\n")
+		}
+		base := b.newlines()
+		for _, r := range msgRefs {
+			r.line += base
+			refs = append(refs, r)
+		}
+		if isUserTurn(msg) && (len(segs) > 1 || segs[0] != "") {
+			userLines = append(userLines, base)
+		}
+		b.write(segs)
+		// Blank line between messages for visual separation.
+		if i < len(messages)-1 {
+			b.write(newlineSegs)
+		}
+	}
+	return b.finish(), refs, userLines
+}
+
 // isUserTurn reports whether msg renders as a user turn (tool results and
 // TUI notices do not).
 func isUserTurn(msg types.Message) bool {
