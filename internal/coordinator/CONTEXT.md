@@ -2,7 +2,7 @@
 package: coordinator
 import_path: internal/coordinator
 layer: core
-generated_at: 2026-11-23T08:02:40Z
+generated_at: 2026-11-23T14:09:22Z
 source_files: [adapter.go, coordinator.go, prompt.go]
 ---
 
@@ -101,3 +101,4 @@ type Coordinator interface {
 - **2026-11-18 thread resume＋訊息不擱淺（feat/coordinator-fork-cache）**：SendMessage 對已結束 agent（completed/failed/stopped）重開續話——resumeAgent 等舊 loopDone 關閉後重啟 loop（RunAgentFn 以 AgentID 保留歷史，見 bootstrap runStates）。防擱淺協議：SendMessage 的 enqueue＋status 檢查與 runAgentLoop 的 exit-check 同在 entry.mu 下原子化；exit 時 inbox 仍有訊息→有界 continuation re-run（maxAgentContinuations=100，防忽略 inbox 的 RunAgentFn 空轉；契約：RunAgentFn 必須 drain inbox，engine 經 QueryParams.InboxCh 為之）。inboxPending 用 len() 非消費快照（<-inbox 會吃掉訊息）。StopAgent 的 killed 狀態於 loop exit 保留（修 TestAdapterStopAgent flake 根因）。系統提示重寫自 claude-projects-coordinator.md＋opus-5.5 Agent 段：常駐 coordinator、不先問就開 thread、instructions 只給 context 不加戲、對 thread 的話永遠不是使用者批准、成本感知委派。
 - **2026-11-18 實機驗證修復：agent 生命週期脫鉤（fix/agent-lifetime）**：SpawnAgent 原以 caller ctx（＝父 query 的 tool-call ctx）為 agent ctx 父源——父 turn 結束（Query defer cancel）或使用者送下一訊息（TUI abortFn）即取消所有 background agent/fork，實機「委派一直失敗」根因。現以 context.WithoutCancel(ctx) 為 parentCtx（保留 values、去除 cancellation）：thread 存活至完成或 StopAgent，對齊 Projects thread 語義。resumeAgent 的 parentCtx 同源，父 ctx 取消後仍可續話。守護測試：TestSpawnAgent_SurvivesParentContextCancel、TestSendMessage_ResumeAfterParentContextCancel。
 - **2026-11-19 完成通知携带 result/summary（feat/coordinator-completion-wake）**：OnStatusChangeFn +result/summary 參數（running 時空字串）；Event +Result/Summary 欄位。runAgentLoop 完成呼叫帶 entry.result＋summary。此前 FormatTaskNotification 僅測試使用、生產從不注入—— coordinator prompt 承諾的 <task-notification> 協議從未兑现，背景 agent 完成後主腦無從得知。現由 TUI 消费（見 tui Design Notes）。
+- **2026-11-23 系統提示加「Reporting to the user」段（fix/repetitive-replies）**：實機 transcript 中主腦在工具呼叫前預告一段、做完再以幾乎相同的開頭總結一次，同一件事（研究線程失敗）講三遍。新段落說明工具呼叫前的文字也會即時顯示：預告最多一行，每個事實只講一次，最終訊息只報告新內容，被截斷時從截斷處續寫。Cache-first：靜態常數變更，coordinator 模式的 system 前綴一次性移動（成本決策：換取不重複的輸出，輸出 token 比前綴快取更貴）；不增大窗口外的呼叫、不新增呼叫。

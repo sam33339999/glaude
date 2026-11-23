@@ -1,6 +1,9 @@
 package permissions
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
 // DenialLimits are the thresholds at which the permission system downgrades
 // itself to prompting mode: a run of consecutive denials (the model repeatedly
@@ -23,7 +26,11 @@ var DENIAL_LIMITS = DenialLimits{
 
 // DenialTrackingState tracks permission denials across a session.
 // A high denial count triggers automatic prompting-mode downgrade.
+// Its methods are safe for concurrent use: parallel tool calls and
+// sub-agents share one checker. Read the exported fields directly only when
+// no permission request can be running.
 type DenialTrackingState struct {
+	mu sync.Mutex
 	// DenialCount is the total number of permission denials recorded.
 	DenialCount int
 	// LastDeniedAt is the timestamp of the most-recent denial.
@@ -51,6 +58,8 @@ func (d *DenialTrackingState) Record(rec DenialRecord) {
 	if rec.DeniedAt.IsZero() {
 		rec.DeniedAt = time.Now()
 	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	d.DenialCount++
 	d.consecutive++
 	d.LastDeniedAt = rec.DeniedAt
@@ -60,7 +69,16 @@ func (d *DenialTrackingState) Record(rec DenialRecord) {
 // RecordApproval resets the consecutive-denial streak (the model found an
 // approved path; a later denial streak starts counting from zero again).
 func (d *DenialTrackingState) RecordApproval() {
+	d.mu.Lock()
 	d.consecutive = 0
+	d.mu.Unlock()
+}
+
+// count returns DenialCount under the lock.
+func (d *DenialTrackingState) count() int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.DenialCount
 }
 
 // shouldFallbackToPrompting reports whether the permission pipeline should
@@ -68,6 +86,8 @@ func (d *DenialTrackingState) RecordApproval() {
 // streak or accumulated total), so asking the user directly is cheaper than
 // continuing to auto-deny.
 func (d *DenialTrackingState) shouldFallbackToPrompting() bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	return d.consecutive >= DENIAL_LIMITS.MaxConsecutive ||
 		d.DenialCount >= DENIAL_LIMITS.MaxTotal
 }

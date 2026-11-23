@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -209,5 +210,41 @@ func TestOpenAIComplete_ReasoningContentBecomesThinkingBlock(t *testing.T) {
 	}
 	if resp.Content[1].Text != "answer" {
 		t.Errorf("second block = %+v, want text 'answer'", resp.Content[1])
+	}
+}
+
+// TestConvertMessage_ThinkingReplayedAsReasoningContent guards the fix for
+// reasoning leaking into replies: replaying past reasoning as assistant text
+// ("[Thinking]: ...") taught the model to write that marker into its answers.
+func TestConvertMessage_ThinkingReplayedAsReasoningContent(t *testing.T) {
+	client := &openaiClient{}
+	cases := []struct {
+		name, content, wantText, wantReasoning string
+		wantTools                              int
+	}{
+		{"text and tool", `[{"type":"thinking","thinking":"plan A"},{"type":"thinking","thinking":"plan B"},{"type":"text","text":"Doing it."},{"type":"tool_use","id":"c1","name":"Read","input":{}}]`, "Doing it.", "plan A\nplan B", 1},
+		{"thinking only", `[{"type":"thinking","thinking":"hmm"}]`, "", "hmm", 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := client.convertMessage(MessageParam{Role: "assistant", Content: json.RawMessage(tc.content)})
+			if len(got) != 1 {
+				t.Fatalf("got %d messages, want 1 (reasoning must not be a separate message)", len(got))
+			}
+			m := got[0]
+			if m.Content == nil || *m.Content != tc.wantText {
+				t.Errorf("content = %v, want %q", m.Content, tc.wantText)
+			}
+			if m.ReasoningContent != tc.wantReasoning {
+				t.Errorf("reasoning_content = %q, want %q", m.ReasoningContent, tc.wantReasoning)
+			}
+			if len(m.ToolCalls) != tc.wantTools {
+				t.Errorf("tool calls = %d, want %d", len(m.ToolCalls), tc.wantTools)
+			}
+			raw, _ := json.Marshal(m)
+			if strings.Contains(string(raw), "[Thinking]") {
+				t.Errorf("serialized message leaks a [Thinking] marker: %s", raw)
+			}
+		})
 	}
 }

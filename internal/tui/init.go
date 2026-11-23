@@ -143,13 +143,22 @@ func listenForPermissionRequest(
 				if allow {
 					decision = tools.PermissionAllow
 				}
-				respCh <- permissions.AskResponse{
+				resp := permissions.AskResponse{
 					ID:       req.ID,
 					Decision: decision,
 					// CM-03: inside CodeMode the "always allow" choice is
 					// CodeMode-scoped, never a project-wide rule.
 					AlwaysAllow:      allow && alwaysAllow && !req.FromCodeMode,
 					AlwaysInCodeMode: allow && alwaysAllow && req.FromCodeMode,
+				}
+				// RespFn runs inside Update. If the ask's caller already gave
+				// up (query cancelled), nobody reads respCh until the next
+				// ask, and a blocking send would freeze the UI; the checker
+				// drops responses whose ID does not match its ask.
+				select {
+				case respCh <- resp:
+				default:
+					go func() { respCh <- resp }()
 				}
 			},
 		}

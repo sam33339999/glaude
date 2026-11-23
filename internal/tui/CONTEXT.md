@@ -2,7 +2,7 @@
 package: tui
 import_path: internal/tui
 layer: tui
-generated_at: 2026-11-23T08:02:40Z
+generated_at: 2026-11-23T14:09:22Z
 source_files: [agentcolors.go, autorun.go, bashmode.go, btw.go, clipboard_paste.go, cmds.go, codeblock.go, completion.go, coordinator.go, init.go, input.go, keys.go, memstat.go, memstat_darwin.go, memstat_linux.go, memstat_other.go, memstat_windows.go, messagelist.go, messages.go, model.go, modelchooser.go, modelpicker.go, paste.go, paste_input.go, permissions.go, provider_dialog.go, providerwizard.go, providerwizard_view.go, rendercache.go, resumepicker.go, selection.go, setup_dialog.go, setupwizard.go, setupwizard_view.go, spinner.go, statusbar.go, styles.go, textwidth.go, theme.go, tier_dialog.go, tierpicker.go, toolview.go, turntiming.go, update.go, view.go, welcome.go]
 ---
 
@@ -128,3 +128,4 @@ source_files: [agentcolors.go, autorun.go, bashmode.go, btw.go, clipboard_paste.
 - **2026-11-20 Ctrl+V**：停用 textarea 內建貼上（`KeyMap.Paste`）。讀取是 `tea.Cmd`，不在 `Update` 裡同步執行。20 張上限在結果回到時才算：engine 歷史的 image block（含 `tool_result` 的一層 `Content`）加上輸入框裡不重複的有效圖片標記。對話框開著時，晚到的結果丟棄。標記插在當下游標，不寫進已送出的訊息。圖片只屬於那一則使用者訊息（不移動 system 前綴、不新增 API 呼叫）。
 - **2026-11-20 中止後排隊圖片仍計入上限**：閒置時的上限另計 `unsentUsers` 裡尚未寫回的標記（Esc 或串流錯誤不清佇列，含 `idx >= inflightBase`），不掃一般歷史文字；載入中的公式不變。直接送出的 in-flight 氣泡在 `releaseWrittenUser` 丟掉 `inflightUser` 之後、engine defer 寫回 `GetMessages` 之前的短窗可能沒被算到。
 - **2026-11-22 滑鼠選取與複製**：滑鼠模式維持 CellMotion（滾輪捲動照舊）。左鍵在訊息 viewport 內拖曳＝選取，放開即複製；雙擊（≤400ms 同格）選一個字（英數字＋`_`，或連續 CJK）；`Esc`（無對話框時）清選取後照原本流程繼續（中斷回應、停 `!`、離開 vim insert 不必多按一次）；寬度改變清選取。選取存內容座標（`contentLines` 的行、cell 欄），所以捲動與串流追加不會錯位；`viewportGeometry` 是 View 與命中判定共用的唯一 offset 與「實際畫出列數」來源（尾端空白列不畫、下方面板上移），兩邊不可各算各的。取字去 ANSI、去行尾空白、去共同縮排，並跳過程式碼標題列。assistant text block 的每個程式碼區塊上方插 `── <lang> ── [copy] ──`（goldmark 抽原文、對 glamour 輸出比對前 3 個非空行（連續、完全相等，折行可前綴）定位，找不到就略過），位置 `codeBlockRef` 隨 render cache entry 存；點 `[copy]` 複製原文。系統提示（※）不插標題列。複製同時送 `tea.SetClipboard`（OSC 52）與 `clipboard.WriteText`（原生；失敗忽略），提示走 `pasteNotice`。純 TUI 顯示與本機剪貼簿，不動 prompt、工具、請求。
+- **2026-11-23 權限回應不阻塞 Update（fix/repetitive-replies）**：`listenForPermissionRequest` 的 RespFn 在 Update 內執行，原本直接寫入容量 1 的 respCh。若詢問的呼叫者已放棄（查詢取消），沒人讀 respCh，第二個過期回答會讓 **UI 卡死**。現在先嘗試非阻塞送出，滿了就交給 goroutine；checker 端會丟棄 ID 不符的回應（見 permissions Design Notes）。

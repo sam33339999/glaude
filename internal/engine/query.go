@@ -104,6 +104,10 @@ func (e *engineImpl) runQueryLoop(ctx context.Context, params QueryParams, msgCh
 	maxTurns := params.MaxTurns
 	turns := 0
 	var lastUsage promptUsage
+	// totalOutput is this query's cumulative output tokens, the figure the
+	// budget tracker measures progress by (it was fed per-turn counts, so a
+	// second cut looked like "no progress" and ended the query silently).
+	totalOutput := 0
 
 	for {
 		// Check context cancellation.
@@ -201,8 +205,7 @@ func (e *engineImpl) runQueryLoop(ctx context.Context, params QueryParams, msgCh
 		// Append the assistant message to the conversation.
 		messages = append(messages, assistantMsg)
 
-		// Update budget tracker.
-		budgetDecision := budget.Check(usage.OutputTokens, req.MaxTokens)
+		totalOutput += usage.OutputTokens
 
 		// Emit turn-complete event.
 		select {
@@ -226,20 +229,26 @@ func (e *engineImpl) runQueryLoop(ctx context.Context, params QueryParams, msgCh
 			return
 
 		case "max_tokens":
-			// Budget nudge logic.
-			if budgetDecision.Action == "stop" {
+			// The response was cut off. Its tool calls are never run, so
+			// drop them first — whether or not we continue, a tool_use with
+			// no tool_result would make the next request fail.
+			cutTools := len(toolCalls) > 0
+			if cutTools {
+				messages[len(messages)-1] = dropToolUse(assistantMsg)
+			}
+			decision := budget.RecoverFromMaxTokens(totalOutput, req.MaxTokens)
+			if decision.Action == "stop" {
+				sendSystem(ctx, msgCh, fmt.Sprintf("Response stopped at the output token limit after %d continuation(s).", decision.ContinuationCount))
 				return
 			}
-			if budgetDecision.NudgeMessage != "" {
-				// Inject a nudge user message and continue.
-				nudgeMsg := types.Message{
-					Role: types.RoleUser,
-					Content: []types.ContentBlock{
-						{Type: types.ContentTypeText, Text: strPtr(budgetDecision.NudgeMessage)},
-					},
-				}
-				messages = append(messages, nudgeMsg)
+			nudge := decision.NudgeMessage
+			if cutTools {
+				nudge += " " + cutToolCallNote
 			}
+			messages = append(messages, types.Message{
+				Role:    types.RoleUser,
+				Content: []types.ContentBlock{{Type: types.ContentTypeText, Text: strPtr(nudge)}},
+			})
 			continue
 
 		case "tool_use":
@@ -572,6 +581,30 @@ func buildAssistantMessage(resp *api.MessageResponse) types.Message {
 		Role:    types.RoleAssistant,
 		Content: content,
 	}
+}
+
+// cutOffText stands in for a cut-off assistant message whose only content
+// was tool calls, so the message is not left empty after dropToolUse.
+const cutOffText = "[cut off at the output token limit]"
+
+// dropToolUse returns a copy of msg without its tool_use blocks. If no text
+// block remains, cutOffText is added so the message keeps some content.
+func dropToolUse(msg types.Message) types.Message {
+	out := types.Message{Role: msg.Role}
+	hasText := false
+	for _, b := range msg.Content {
+		if b.Type == types.ContentTypeToolUse {
+			continue
+		}
+		if b.Type == types.ContentTypeText && b.Text != nil && *b.Text != "" {
+			hasText = true
+		}
+		out.Content = append(out.Content, b)
+	}
+	if !hasText {
+		out.Content = append(out.Content, types.ContentBlock{Type: types.ContentTypeText, Text: strPtr(cutOffText)})
+	}
+	return out
 }
 
 // sendError sends an error Msg on msgCh (non-blocking if ctx done).
