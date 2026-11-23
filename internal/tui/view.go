@@ -224,6 +224,10 @@ func (m AppModel) renderActiveDialog() string {
 		if m.tierPicker != nil {
 			return m.tierPicker.view(m.dialogWidth(), m.resumePickerMaxHeight(), m.theme)
 		}
+	case dialogProvider:
+		if m.providerWizard != nil {
+			return m.providerWizard.view(m.dialogWidth(), m.resumePickerMaxHeight(), m.theme)
+		}
 	}
 	return ""
 }

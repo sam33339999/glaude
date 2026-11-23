@@ -37,6 +37,7 @@ const (
 	dialogModelPicker             // /model menu
 	dialogModelConfirm            // /model cache-invalidation confirmation
 	dialogTier                    // /tier binding picker
+	dialogProvider                // /provider manager
 )
 
 // questionState holds the active AskUserQuestion dialog (BF-08): the question,
@@ -171,6 +172,11 @@ type AppModel struct {
 	// numbers picker sessions so results for a closed one are dropped.
 	tierPicker *tierPicker
 	tierSeq    int
+	// providerBackend serves /provider (may be nil); providerWizard is its
+	// live state while dialogProvider is open, providerSeq numbers sessions.
+	providerBackend commands.ProviderBackend
+	providerWizard  *providerWizard
+	providerSeq     int
 	// modelSwitcher serves /model (may be nil: legacy SetModel path);
 	// modelPicker / pendingModel hold the menu and the switch awaiting y/n.
 	modelSwitcher commands.ModelSwitcher
