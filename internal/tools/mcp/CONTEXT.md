@@ -2,7 +2,7 @@
 package: mcp
 import_path: internal/tools/mcp
 layer: tools
-generated_at: 2026-11-23T07:05:36Z
+generated_at: 2026-11-23T08:02:40Z
 source_files: [doc.go, mcp.go]
 ---
 

@@ -2,7 +2,7 @@
 package: msgqueue
 import_path: internal/msgqueue
 layer: services
-generated_at: 2026-11-23T07:05:36Z
+generated_at: 2026-11-23T08:02:40Z
 source_files: [command.go, guard.go, queue.go, signal.go]
 ---
 

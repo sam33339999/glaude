@@ -28,7 +28,7 @@
 **非目標**
 - **寫回 `settings.json`**：負責人決定**只在本 session 有效**，重開回到 `settings.json`（主腦預設由 `/setup` 或手動設定決定）。
 - 在 `/model` 裡新增或編輯 provider、等級（那是 `config.toml` / `/tier` / `/setup` 的事）。
-- 從 provider 列出所有模型讓人挑（`/setup` 已有；`/model` 只在既有目標間切換）。
+- 連網列舉 provider 的全部模型（選單只列 `config.toml` 的 models 表，見 `2026-11-23-model-picker-provider-models-design.md`）。
 
 **反目標**
 - 沒有選擇切換時，主腦的請求位元組改變（golden 測試 `TestQuery_MainLoopRequestUnchangedWithoutTiers` 必須維持）。

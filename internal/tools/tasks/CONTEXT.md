@@ -2,7 +2,7 @@
 package: tasks
 import_path: internal/tools/tasks
 layer: tools
-generated_at: 2026-11-23T07:05:36Z
+generated_at: 2026-11-23T08:02:40Z
 source_files: [doc.go, tasks.go]
 ---
 

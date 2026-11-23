@@ -52,7 +52,7 @@ func optionNamed(opts []commands.ModelOption, name string) commands.ModelOption 
 func TestModelSwitcher_Options(t *testing.T) {
 	s, _, _ := newTestSwitcher(t, switchTestConfig)
 	opts := s.Options()
-	if len(opts) != 4 || opts[0].Name != "default" || !opts[0].Current || !opts[0].Available {
+	if len(opts) < 4 || opts[0].Name != "default" || opts[1].Name != "lite" || opts[2].Name != "pro" || opts[3].Name != "max" || !opts[0].Current || !opts[0].Available {
 		t.Fatalf("options = %+v", opts)
 	}
 	if lite := optionNamed(opts, "lite"); !lite.Available || lite.Provider != "zai" || lite.ContextWindow != 131072 {

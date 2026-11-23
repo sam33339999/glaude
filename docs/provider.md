@@ -31,7 +31,7 @@ Enter edit/add · d delete · Esc close
 5. **勾選模型**：打字過濾、空白鍵勾選。勾選的模型寫進 `[providers.<id>.models]`，清單有回報上下文長度時一併寫 `context_window`。
 6. **綁定等級**（選填）：lite / pro / max 各自用 ←/→ 選「keep current binding」（預設）或某個勾選的模型。
 7. **確認**：列出要寫入的內容，金鑰只顯示末 4 碼。Enter 寫入。
-8. **完成**：顯示可以直接輸入的 `/model <id>:<模型>`。
+8. **完成**：顯示可以直接輸入的 `/model <id>:<模型>`；勾選的模型也會出現在 `/model` 選單的 `── <id> ──` 分段裡。
 
 任何一步按 Esc 都是回上一步。
 

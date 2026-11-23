@@ -2,7 +2,7 @@
 package: plugin
 import_path: internal/plugin
 layer: infra
-generated_at: 2026-11-23T07:05:36Z
+generated_at: 2026-11-23T08:02:40Z
 source_files: [plugin.go]
 ---
 
