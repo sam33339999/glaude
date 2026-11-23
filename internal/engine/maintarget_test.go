@@ -184,3 +184,23 @@ func TestSetMainTarget_WriteBackAfterSwitchStripsThinking(t *testing.T) {
 		t.Error("write-back of the old loop resurrected thinking blocks after a provider switch")
 	}
 }
+
+func TestSetMainTargetStripThinkingFlag(t *testing.T) {
+	eng := New(Config{Client: &countingClient{}, Registry: tools.NewRegistry(), Model: "m"})
+	eng.SetMainTarget(MainTarget{Client: &countingClient{}, ProviderID: "zai", Model: "glm"})
+	eng.SetMessages([]types.Message{userText("q"), thinkingMsg(), userText("q2")})
+
+	// Same provider id, no flag: thinking kept.
+	eng.SetMainTarget(MainTarget{Client: &countingClient{}, ProviderID: "zai", Model: "glm"})
+	if !hasThinking(eng.GetMessages()) {
+		t.Fatal("thinking stripped without a provider change or flag")
+	}
+	// Same provider id with the flag (endpoint edited): stripped.
+	eng.SetMainTarget(MainTarget{Client: &countingClient{}, ProviderID: "zai", Model: "glm", StripThinking: true})
+	if hasThinking(eng.GetMessages()) {
+		t.Fatal("StripThinking did not strip thinking blocks")
+	}
+	if eng.MainTarget().StripThinking {
+		t.Fatal("StripThinking must not be stored in the target")
+	}
+}
