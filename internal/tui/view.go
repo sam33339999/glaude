@@ -212,7 +212,7 @@ func (m AppModel) renderActiveDialog() string {
 		}
 	case dialogModelPicker:
 		if m.modelPicker != nil {
-			return m.modelPicker.view(m.dialogWidth(), m.theme)
+			return m.modelPicker.view(m.dialogWidth(), m.resumePickerMaxHeight(), m.theme)
 		}
 	case dialogModelConfirm:
 		return m.renderModelConfirm()

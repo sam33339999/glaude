@@ -52,32 +52,107 @@ func (p *modelPicker) move(delta int) {
 	}
 }
 
-func (p *modelPicker) view(width int, theme Theme) string {
+// pickerEntry is one rendered menu line: a group header (opt == -1) or an option.
+type pickerEntry struct {
+	text string
+	opt  int
+}
+
+// lines renders every menu line, with a header before each provider group.
+func (p *modelPicker) lines(theme Theme) []pickerEntry {
+	var out []pickerEntry
+	group := ""
+	for i, o := range p.opts {
+		if o.Group != "" && o.Group != group {
+			out = append(out, pickerEntry{text: mutedStyle(theme).Render("── " + o.Group + " ──"), opt: -1})
+		}
+		group = o.Group
+		out = append(out, pickerEntry{text: p.optionLine(i, o, theme), opt: i})
+	}
+	return out
+}
+
+func (p *modelPicker) optionLine(i int, o commands.ModelOption, theme Theme) string {
+	var label string
+	switch {
+	case o.Group != "" && o.Model == "":
+		return mutedStyle(theme).Render("  " + o.Reason)
+	case o.Group != "":
+		label = o.Label()
+	default:
+		label = fmt.Sprintf("%-8s %s", o.Name, o.Label())
+	}
+	if o.ContextWindow > 0 {
+		label += "  " + compactCount(o.ContextWindow)
+	}
+	switch {
+	case !o.Available:
+		return mutedStyle(theme).Render("  " + label + "  (" + o.Reason + ")")
+	case i == p.cursor:
+		line := "❯ " + label
+		if o.Current {
+			line += "  (current)"
+		}
+		return primaryStyle(theme).Render(line)
+	default:
+		if o.Current {
+			label += "  (current)"
+		}
+		return "  " + label
+	}
+}
+
+// view renders the menu, scrolled so the cursor stays visible within maxHeight.
+func (p *modelPicker) view(width, maxHeight int, theme Theme) string {
+	entries := p.lines(theme)
+	rows := max(maxHeight-8, 3) // title, blanks, help, ↑/↓ and the box border
+	cur := 0
+	for i, e := range entries {
+		if e.opt == p.cursor {
+			cur = i
+		}
+	}
+	start := 0
+	if len(entries) > rows {
+		if cur >= rows {
+			start = cur - rows + 1
+		}
+		// Keep the group header of the cursor's group when it fits.
+		if start > 0 && start == cur && entries[start-1].opt == -1 {
+			start--
+		}
+	}
+	end := min(start+rows, len(entries))
+	hidden := func(es []pickerEntry) int {
+		n := 0
+		for _, e := range es {
+			if e.opt >= 0 {
+				n++
+			}
+		}
+		return n
+	}
 	var sb strings.Builder
 	sb.WriteString(primaryStyle(theme).Bold(true).Render("Switch main model (this session only)") + "\n\n")
-	for i, o := range p.opts {
-		label := fmt.Sprintf("%-8s %s", o.Name, o.Label())
-		if o.ContextWindow > 0 {
-			label += "  " + compactCount(o.ContextWindow)
-		}
-		switch {
-		case !o.Available:
-			sb.WriteString(mutedStyle(theme).Render("  "+label+"  ("+o.Reason+")") + "\n")
-		case i == p.cursor:
-			line := "❯ " + label
-			if o.Current {
-				line += "  (current)"
-			}
-			sb.WriteString(primaryStyle(theme).Render(line) + "\n")
-		default:
-			if o.Current {
-				label += "  (current)"
-			}
-			sb.WriteString("  " + label + "\n")
-		}
+	if n := hidden(entries[:start]); n > 0 {
+		sb.WriteString(mutedStyle(theme).Render(fmt.Sprintf("  ↑ %d more", n)) + "\n")
+	}
+	for _, e := range entries[start:end] {
+		sb.WriteString(e.text + "\n")
+	}
+	if n := hidden(entries[end:]); n > 0 {
+		sb.WriteString(mutedStyle(theme).Render(fmt.Sprintf("  ↓ %d more", n)) + "\n")
 	}
 	sb.WriteString("\n" + mutedStyle(theme).Render("↑/↓ select · Enter switch · Esc cancel"))
 	return dialogBox(sb.String(), width, theme)
+}
+
+// optionTitle names an option for notices and the confirm box.
+func optionTitle(o commands.ModelOption) string {
+	if o.Name == "" {
+		return o.Label()
+	}
+	return o.Name + " (" + o.Label() + ")"
 }
 
 // openModelPicker handles "/model" without arguments.
@@ -144,11 +219,10 @@ func (m AppModel) applyModelSwitch(opt commands.ModelOption) AppModel {
 	}
 	m.statusBar.model = opt.Model
 	m.statusBar.contextWindow = compact.ResolveContextWindow(opt.Model, opt.ContextWindow)
-	name := opt.Name
-	if name == "" {
-		name = "custom"
+	if opt.Name == "" {
+		return m.systemNotice(fmt.Sprintf("Main model: %s (session only).", opt.Label()))
 	}
-	return m.systemNotice(fmt.Sprintf("Main model: %s → %s (session only).", name, opt.Label()))
+	return m.systemNotice(fmt.Sprintf("Main model: %s → %s (session only).", opt.Name, opt.Label()))
 }
 
 func (m AppModel) handleModelPickerKey(key tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -196,7 +270,7 @@ func (m AppModel) renderModelConfirm() string {
 	}
 	est := compact.EstimateTokens(m.queryEngine.GetMessages())
 	var sb strings.Builder
-	sb.WriteString(primaryStyle(m.theme).Bold(true).Render("Switch main model to "+opt.Name+" ("+opt.Label()+")?") + "\n\n")
+	sb.WriteString(primaryStyle(m.theme).Bold(true).Render("Switch main model to "+optionTitle(*opt)+"?") + "\n\n")
 	sb.WriteString("The prompt cache is tied to the current model and provider: the next\n")
 	sb.WriteString(fmt.Sprintf("request re-sends the whole conversation (≈%s tokens) without cache.\n", compactCount(est)))
 	target := compact.Target{Model: opt.Model, ContextWindow: opt.ContextWindow, MaxOutputTokens: opt.MaxTokens}
