@@ -175,6 +175,38 @@ func TestAskUserQuestionTool_AnswerFlow(t *testing.T) {
 	}
 }
 
+// Models trained on Claude Code's AskUserQuestion often send options as
+// {label, description} objects even though our schema says strings; the
+// tool must accept both instead of failing the whole call.
+func TestAskUserQuestionInput_AcceptsOptionObjects(t *testing.T) {
+	raw := `{"question":"Story1 要調整成什麼？","options":[
+		{"label":"拆成兩個","description":"前後端分開"},
+		{"label":"維持原樣"},
+		"直接刪掉",
+		{"description":"只有說明"}
+	]}`
+	var in interact.AskUserQuestionInput
+	if err := json.Unmarshal([]byte(raw), &in); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	want := []string{"拆成兩個 — 前後端分開", "維持原樣", "直接刪掉", "只有說明"}
+	if len(in.Options) != len(want) {
+		t.Fatalf("options = %q, want %q", in.Options, want)
+	}
+	for i := range want {
+		if in.Options[i] != want[i] {
+			t.Errorf("options[%d] = %q, want %q", i, in.Options[i], want[i])
+		}
+	}
+}
+
+func TestAskUserQuestionInput_RejectsBadOption(t *testing.T) {
+	var in interact.AskUserQuestionInput
+	if err := json.Unmarshal([]byte(`{"question":"q?","options":[42]}`), &in); err == nil {
+		t.Fatal("expected error for numeric option")
+	}
+}
+
 func TestAskUserQuestionTool_Dismissed(t *testing.T) {
 	tool, ask, resp := newQuestionTool()
 	in, _ := json.Marshal(interact.AskUserQuestionInput{Question: "q?"})

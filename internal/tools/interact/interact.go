@@ -167,6 +167,45 @@ type AskUserQuestionInput struct {
 	Options []string `json:"options,omitempty"`
 }
 
+// UnmarshalJSON accepts each option either as a plain string or as a
+// {label, description} object — the shape Claude Code's AskUserQuestion uses,
+// which models frequently emit regardless of our string schema. Objects are
+// flattened to "label — description" so the TUI keeps a []string.
+func (in *AskUserQuestionInput) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Question string            `json:"question"`
+		Options  []json.RawMessage `json:"options,omitempty"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	in.Question = raw.Question
+	in.Options = nil
+	for i, opt := range raw.Options {
+		var s string
+		if err := json.Unmarshal(opt, &s); err == nil {
+			in.Options = append(in.Options, s)
+			continue
+		}
+		var obj struct {
+			Label       string `json:"label"`
+			Description string `json:"description"`
+		}
+		if err := json.Unmarshal(opt, &obj); err != nil {
+			return fmt.Errorf("options[%d]: want a string or {label, description} object", i)
+		}
+		switch {
+		case obj.Label != "" && obj.Description != "":
+			in.Options = append(in.Options, obj.Label+" — "+obj.Description)
+		case obj.Label != "":
+			in.Options = append(in.Options, obj.Label)
+		case obj.Description != "":
+			in.Options = append(in.Options, obj.Description)
+		}
+	}
+	return nil
+}
+
 // NewAskUserQuestionTool constructs the AskUserQuestion tool backed by the
 // HIL channel pair (BF-08), mirroring the permission dialog pipeline: the
 // tool sends a QuestionRequest and blocks until the TUI returns a response.
