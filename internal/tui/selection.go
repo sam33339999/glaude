@@ -102,9 +102,9 @@ type cell struct {
 	r            rune
 }
 
-// tabCells is how many screen cells a tab occupies: the viewport draws each
-// tab as this many spaces (lipgloss' default tab conversion), so selection
-// columns, which are screen cells, count a tab the same way.
+// tabCells is how many screen cells a tab occupies: scrollView.View draws
+// each tab as this many spaces, so selection columns, which are screen
+// cells, count a tab the same way.
 const tabCells = 4
 
 // lineCells lays out plain as it appears on screen. A tab is one cell entry
