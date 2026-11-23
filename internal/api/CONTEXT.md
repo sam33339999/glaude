@@ -2,7 +2,7 @@
 package: api
 import_path: internal/api
 layer: services
-generated_at: 2026-11-23T08:02:40Z
+generated_at: 2026-11-23T14:09:22Z
 source_files: [accumulate.go, client.go, debug_logger.go, errors.go, factory.go, json.go, listmodels.go, openai_client.go, openai_images.go, openai_stream.go, openai_tool_schema.go, openai_types.go, ratelimit.go, retry.go, stream.go, usage.go]
 ---
 
@@ -138,15 +138,15 @@ type StreamReader interface {
 - `ListModelsError` → `internal/bootstrap/setup.go`
 - `MessageDeltaData` → `internal/bootstrap/acp_integration_test.go` (test), `internal/engine/engine_test.go` (test), `internal/engine/thinking_display_test.go` (test)
 - `MessageParam` → `internal/compact/auto.go`, `internal/engine/query.go`, `internal/tui/autorun.go`
-- `MessageRequest` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/tiers_test.go` (test), `internal/compact/auto.go`, `internal/compact/auto_test.go` (test), `internal/engine/btw_test.go` (test) + 14 more
-- `MessageResponse` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/tiers_test.go` (test), `internal/compact/auto.go`, `internal/compact/auto_test.go` (test), `internal/engine/engine_test.go` (test) + 5 more
+- `MessageRequest` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/tiers_test.go` (test), `internal/compact/auto.go`, `internal/compact/auto_test.go` (test), `internal/engine/btw_test.go` (test) + 15 more
+- `MessageResponse` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/tiers_test.go` (test), `internal/compact/auto.go`, `internal/compact/auto_test.go` (test), `internal/engine/engine_test.go` (test) + 6 more
 - `MessageStartData` → `internal/bootstrap/acp_integration_test.go` (test), `internal/engine/engine_test.go` (test), `internal/engine/thinking_display_test.go` (test)
 - `RetryOptions` → `internal/engine/query.go`
-- `StreamEvent` → `internal/bootstrap/acp_integration_test.go` (test), `internal/engine/engine_test.go` (test), `internal/engine/thinking_display_test.go` (test)
-- `StreamReader` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/tiers_test.go` (test), `internal/compact/auto_test.go` (test), `internal/engine/btw_test.go` (test), `internal/engine/cache_breakpoints_test.go` (test) + 12 more
+- `StreamEvent` → `internal/bootstrap/acp_integration_test.go` (test), `internal/engine/engine_test.go` (test), `internal/engine/max_tokens_test.go` (test), `internal/engine/thinking_display_test.go` (test)
+- `StreamReader` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/tiers_test.go` (test), `internal/compact/auto_test.go` (test), `internal/engine/btw_test.go` (test), `internal/engine/cache_breakpoints_test.go` (test) + 13 more
 - `SystemBlock` → `internal/engine/query.go`
 - `ToolSchema` → `internal/engine/compaction.go`
-- `Usage` → `internal/bootstrap/acp_integration_test.go` (test), `internal/engine/compaction.go`, `internal/engine/engine_test.go` (test), `internal/engine/query.go`, `internal/engine/thinking_display_test.go` (test) + 1 more
+- `Usage` → `internal/bootstrap/acp_integration_test.go` (test), `internal/engine/compaction.go`, `internal/engine/engine_test.go` (test), `internal/engine/max_tokens_test.go` (test), `internal/engine/query.go` + 2 more
 
 ## Dependencies
 
@@ -171,3 +171,4 @@ type StreamReader interface {
 - **2026-11-20 finish_reason 與 usage 同一個 chunk（fix/openai-finish-with-usage）**：智譜 GLM（z.ai）串流把 `finish_reason` 和 `usage` 放在**同一個** chunk。原本 reader 只要看到 `usage` 且已 started 就提早 return usage delta，同 chunk 的 finish 沒被處理 → stop reason 為空 → engine 當成 `end_turn` 結束回合，**模型要求的工具從未執行**（TUI 只顯示 tool_use、沒有結果，回應看起來「很短就停」）。現在只有 choices 為空的獨立 usage chunk 才走提早 return；有 choices 時 fall through，由 finish 的 message_delta 帶出已記錄的 usage。守護測試 TestOpenAIStream_FinishAndUsageInSameChunk（chunk 形狀取自實測 z.ai 回應）；另以 glm-5.3-flash 實機對照修改前後驗證。
 - **2026-11-20 圖片送達 OpenAI 相容 provider（feat/tool-result-images）**：`ContentBlock` 加 `Source *ImageSource`。`convertMessage` 把 user 訊息的 image block 轉成 `image_url` content part（base64 → data URL）；tool_result 裡的圖片因為 `role:"tool"` 只吃文字，改成在所有 tool 訊息之後補一則 user 訊息（`toolImagesNote` + image_url），tool 訊息本身只放文字或 `toolImagePlaceholder`。`openaiMessage.Parts` 用自訂 `MarshalJSON`，**只有帶圖的訊息**才輸出陣列 content，沒有圖片的請求位元組與以前完全相同（cache-first，守護測試 TestOpenAIConvert_NoImageBytesUnchanged）。`splitToolResultContent` 取代 `extractToolResultContent`，不再把含圖的陣列以原始 JSON（含 base64）當文字送出。`IsImageUnsupportedError`：400 且訊息符合 z.ai／OpenAI／DeepSeek 等「不接受圖片」措辭的啟發式判斷，呼叫端只在請求真的帶圖時才採信。實測 z.ai：glm-5.3-flash 接受圖片，glm-5.3／glm-4.5 回 400 `messages.content.type is invalid, allowed values: ['text']`。
 - **2026-11-20 `IsImageUnsupportedError` 收緊**：只認「模型根本不收圖」的措辭（`allowed values: ['text']`、`only supported by certain models`、`unknown variant image_url`、`does not support … image`、`image … not supported`）。單一張圖的問題（media type 不符、超過 8000 px、超過 5 MB）不算，否則支援視覺的模型會因為一張壞圖被整個 session 停用圖片。守護案例在 TestIsImageUnsupportedError。
+- **2026-11-23 thinking 改走 `reasoning_content` 回放（fix/repetitive-replies）**：`convertMessage` 原本把 assistant 的 thinking 區塊轉成**另一則** assistant 文字訊息 `"[Thinking]: …"`。模型在歷史中看到自己「說過」這段推理，就開始把 `[Thinking]:` 與推理內容寫進回覆（實機 transcript 4 處外洩），回覆看起來一直重複。另有 `thinkingText =`（應為 `+=`）只留最後一段的 bug。現在推理放進**同一則** assistant 訊息的 `openaiMessage.ReasoningContent`（`reasoning_content`，與 provider 回傳推理的非標準欄位相同；只有回傳過推理的 provider 才會產生 thinking 區塊，因此只送往認得此欄位的 provider），content 只放文字。只有 thinking 的回合也只產生一則 content 為空的 assistant 訊息。Cache-first：帶 thinking 的歷史位元組改變（一次性前綴移動，修正行為所必需）；無 thinking 的對話位元組不變；不增大窗口（少一則訊息）、不新增呼叫。守護測試 TestConvertMessage_ThinkingReplayedAsReasoningContent。

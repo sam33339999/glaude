@@ -241,33 +241,30 @@ func (c *openaiClient) convertMessage(msg MessageParam) []openaiMessage {
 					if thinkingText != "" {
 						thinkingText += "\n"
 					}
-					thinkingText = fmt.Sprintf("[Thinking]: %s", block.Thinking)
+					thinkingText += block.Thinking
 				}
 			}
 		}
 
-		// Create assistant message with combined content and tool calls
-		if combinedText != "" || len(toolCalls) > 0 {
+		// One assistant message carries the text, the tool calls and the
+		// reasoning. Reasoning goes in reasoning_content, never in content:
+		// replayed as text (formerly a separate "[Thinking]: ..." message)
+		// the model saw its own reasoning as something it had said, and
+		// copied the marker and its reasoning into later replies.
+		if combinedText != "" || len(toolCalls) > 0 || thinkingText != "" {
 			// Always set Content for assistant messages with tool_calls.
 			// Many OpenAI-compatible APIs require the content field to be present
 			// (even if empty) when tool_calls are included.
 			contentPtr := &combinedText
 			assistantMsg := openaiMessage{
-				Role:    "assistant",
-				Content: contentPtr,
+				Role:             "assistant",
+				Content:          contentPtr,
+				ReasoningContent: thinkingText,
 			}
 			if len(toolCalls) > 0 {
 				assistantMsg.ToolCalls = toolCalls
 			}
 			result = append(result, assistantMsg)
-		}
-
-		// Add thinking as a separate message if present
-		if thinkingText != "" {
-			result = append(result, openaiMessage{
-				Role:    "assistant",
-				Content: &thinkingText,
-			})
 		}
 
 		return result

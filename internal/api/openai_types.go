@@ -44,6 +44,11 @@ type openaiMessage struct {
 	Name       string              `json:"name,omitempty"`
 	ToolCalls  []openaiToolCall    `json:"tool_calls,omitempty"`
 	ToolCallID string              `json:"tool_call_id,omitempty"`
+	// ReasoningContent replays an assistant turn's chain-of-thought through
+	// the non-standard reasoning_content field, the same field reasoning
+	// models return it in. It is never folded into Content: a model that
+	// reads its past reasoning as reply text starts writing it into replies.
+	ReasoningContent string `json:"reasoning_content,omitempty"`
 }
 
 // MarshalJSON emits Parts as the content array when present.
