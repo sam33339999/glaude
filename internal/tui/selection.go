@@ -102,15 +102,30 @@ type cell struct {
 	r            rune
 }
 
+// tabCells is how many screen cells a tab occupies: the viewport draws each
+// tab as this many spaces (lipgloss' default tab conversion), so selection
+// columns, which are screen cells, count a tab the same way.
+const tabCells = 4
+
+// lineCells lays out plain as it appears on screen. A tab is one cell entry
+// spanning tabCells columns, so copying keeps the tab character.
 func lineCells(plain string) []cell {
 	cells := make([]cell, 0, len(plain))
 	col := 0
 	for _, r := range plain {
-		w := ansi.StringWidth(string(r))
+		w := tabCells
+		if r != '\t' {
+			w = ansi.StringWidth(string(r))
+		}
 		cells = append(cells, cell{start: col, width: w, r: r})
 		col += w
 	}
 	return cells
+}
+
+// plainWidth is the on-screen width of plain, counting tabs as tabCells.
+func plainWidth(plain string) int {
+	return ansi.StringWidth(plain) + strings.Count(plain, "\t")*tabCells
 }
 
 // cutCells returns the characters of plain overlapping cell range [from,to).
@@ -153,7 +168,7 @@ func extractSelection(lines []string, start, end contentPos, skip map[int]bool) 
 			continue
 		}
 		plain := ansi.Strip(lines[i])
-		from, to := 0, ansi.StringWidth(plain)
+		from, to := 0, plainWidth(plain)
 		if i == start.line {
 			from = start.col
 		}
@@ -346,7 +361,7 @@ func (m AppModel) lineEnd(i int) contentPos {
 	if i < 0 {
 		return contentPos{}
 	}
-	w := ansi.StringWidth(ansi.Strip(m.contentLines[i]))
+	w := plainWidth(ansi.Strip(m.contentLines[i]))
 	if w > 0 {
 		w--
 	}
