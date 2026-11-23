@@ -2,7 +2,7 @@
 package: misc
 import_path: internal/tools/misc
 layer: tools
-generated_at: 2026-11-23T07:05:36Z
+generated_at: 2026-11-23T07:58:32Z
 source_files: [doc.go, misc.go]
 ---
 

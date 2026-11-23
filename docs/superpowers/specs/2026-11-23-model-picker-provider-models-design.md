@@ -1,7 +1,7 @@
 # `/model` 選單列出服務商模型 設計（短版）
 
 - 日期：2026-11-23
-- 狀態：已核准（2026-11-23）
+- 狀態：已核准並實作（2026-11-23）
 - 分支：`feat/model-picker-provider-models`（從 `dev` b1c3299 分出）
 - 相關：`docs/superpowers/specs/2026-11-20-model-switch-design.md`（`/model`）、`docs/superpowers/specs/2026-11-23-provider-command-design.md`（`/provider`）
 

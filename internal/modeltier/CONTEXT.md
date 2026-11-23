@@ -2,7 +2,7 @@
 package: modeltier
 import_path: internal/modeltier
 layer: unknown
-generated_at: 2026-11-23T07:05:36Z
+generated_at: 2026-11-23T07:58:32Z
 source_files: [config.go, credentials.go, providerid.go, resolve.go, store.go, store_provider.go]
 ---
 
@@ -49,8 +49,8 @@ source_files: [config.go, credentials.go, providerid.go, resolve.go, store.go, s
 
 **Exported type references (files that use types from this package):**
 - `Binding` → `internal/bootstrap/modelswitch.go`, `internal/bootstrap/tiers.go`, `internal/commands/tier.go`, `internal/commands/tier_test.go` (test), `internal/tui/tierpicker.go` + 2 more
-- `ModelInfo` → `internal/bootstrap/provider.go`, `internal/bootstrap/provider_test.go` (test)
-- `Provider` → `internal/bootstrap/provider.go`, `internal/bootstrap/provider_test.go` (test), `internal/bootstrap/tiers.go`, `internal/bootstrap/tiers_router_test.go` (test), `internal/bootstrap/tiers_test.go` (test) + 6 more
+- `ModelInfo` → `internal/bootstrap/modelswitch_provider_test.go` (test), `internal/bootstrap/provider.go`, `internal/bootstrap/provider_test.go` (test)
+- `Provider` → `internal/bootstrap/modelswitch_provider_test.go` (test), `internal/bootstrap/provider.go`, `internal/bootstrap/provider_test.go` (test), `internal/bootstrap/tiers.go`, `internal/bootstrap/tiers_router_test.go` (test) + 7 more
 - `ProviderStatus` → `internal/commands/tier.go`, `internal/commands/tier_test.go` (test), `internal/tui/provider_dialog_test.go` (test), `internal/tui/tierpicker.go`, `internal/tui/tierpicker_test.go` (test) + 1 more
 - `Store` → `internal/bootstrap/provider.go`, `internal/bootstrap/tiers.go`, `internal/bootstrap/wire.go`, `internal/commands/tier.go`, `internal/commands/tier_test.go` (test)
 

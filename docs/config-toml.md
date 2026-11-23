@@ -98,7 +98,7 @@ context_window = 200000
 
 ## 在會話中切換主腦（`/model`）
 
-`/model` 會打開選單，列出 `default`（`settings.json` 的主腦）和 lite / pro / max，選了就把主腦換成該目標的 provider client、模型、`context_window` 和 `max_tokens`，可以跨 provider。**只在本 session 有效**，重開回到 `settings.json`。
+`/model` 會打開選單，列出 `default`（`settings.json` 的主腦）和 lite / pro / max，接著依 provider id 分段列出每個 provider `[providers.<id>.models]` 裡的模型（不連網；沒有模型的 provider 顯示一行提示，請用 `/provider` 勾選）。選了就把主腦換成該目標的 provider client、模型、`context_window` 和 `max_tokens`，可以跨 provider。選單太長時可以捲動。**只在本 session 有效**，重開回到 `settings.json`。
 
 - `/model <參考>` 也可以：等級名、舊別名（`opus` → `max`）、`providerID:modelID`，或目前主腦 provider 上的模型 ID。
 - 對話已有內容時會先確認：換模型或 provider 會讓 prompt 快取失效，下一則請求要重送整段對話；新模型的窗口比目前對話小時，下一輪會壓縮並可能截掉最舊的內容。
