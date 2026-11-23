@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -89,18 +90,19 @@ func TestBudgetTracker_ZeroMaxTokens(t *testing.T) {
 }
 
 func TestBudgetTracker_NudgeMessages(t *testing.T) {
-	cases := []struct {
-		count int
-		want  string
-	}{
-		{1, "wrap up"},
-		{2, "very close"},
-		{3, "Output limit"},
-	}
-	for _, tc := range cases {
-		msg := buildNudgeMessage(tc.count)
+	// The cut-off response stays on screen, so every nudge must ask the
+	// model to continue from the cut — asking for a "final response" makes
+	// it restart the whole answer and the user reads it twice.
+	for count := 1; count <= 4; count++ {
+		msg := buildNudgeMessage(count)
 		if msg == "" {
-			t.Errorf("buildNudgeMessage(%d) returned empty string", tc.count)
+			t.Fatalf("buildNudgeMessage(%d) returned empty string", count)
+		}
+		if !strings.Contains(msg, "repeat") {
+			t.Errorf("buildNudgeMessage(%d) = %q, want it to forbid repeating earlier text", count, msg)
+		}
+		if strings.Contains(strings.ToLower(msg), "final response") {
+			t.Errorf("buildNudgeMessage(%d) = %q, must not ask for a final response", count, msg)
 		}
 	}
 }

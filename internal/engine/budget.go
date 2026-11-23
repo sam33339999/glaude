@@ -111,13 +111,40 @@ func (b *BudgetTracker) Check(outputTokens, maxTokens int) TokenBudgetDecision {
 }
 
 // buildNudgeMessage returns the continuation-nudge message for the given count.
+//
+// The nudge is sent after a response was cut off at max_tokens, and the cut
+// response stays in the conversation and on screen. So every nudge asks the
+// model to continue from the cut, never to give a "final response": asked
+// for one, models restart the whole answer and the user reads it twice.
 func buildNudgeMessage(count int) string {
 	switch count {
 	case 1:
-		return "You are approaching the output token limit. Please wrap up your current task and provide a final response."
+		return "Output token limit hit. Resume directly from where your last message was cut off — no apology, no recap, and do not restart or repeat anything you already wrote. Pick up mid-sentence if that is where the cut happened. Break the remaining work into smaller pieces."
 	case 2:
-		return "You are very close to the output token limit. Please finish your response immediately with what you have so far."
+		return "Output token limit hit again. Continue from the exact point you were cut off without repeating earlier text, and finish the remaining work as briefly as possible."
 	default:
-		return "Output limit reached. Provide your final response now."
+		return "Output token limit hit. Finish the sentence you were writing and stop. Do not repeat anything."
 	}
 }
+
+// RecoverFromMaxTokens decides what follows a response that was cut off at
+// max_tokens. outputTokens is the query's cumulative output (as for Check).
+// Unlike Check it always returns either "stop" or a nudge: the stop reason
+// is authoritative even when usage is under-reported (some OpenAI-compatible
+// providers report none), so every cut counts as a continuation and the
+// recovery stays bounded by MaxContinuations.
+func (b *BudgetTracker) RecoverFromMaxTokens(outputTokens, maxTokens int) TokenBudgetDecision {
+	d := b.Check(outputTokens, maxTokens)
+	if d.Action == "stop" || d.NudgeMessage != "" {
+		return d
+	}
+	b.ContinuationCount++
+	d.ContinuationCount = b.ContinuationCount
+	d.NudgeMessage = buildNudgeMessage(b.ContinuationCount)
+	return d
+}
+
+// cutToolCallNote is appended to the nudge when the cut-off response
+// contained tool calls. They were removed from the history unrun, because a
+// tool_use with no tool_result makes the next request fail on both APIs.
+const cutToolCallNote = "Your message was cut off while it contained tool calls; those calls were not run and have been removed. Issue them again if they are still needed, keeping each one small enough to fit (for example, write a large file in several smaller edits)."
