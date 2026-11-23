@@ -184,22 +184,84 @@ func (s *stubPathTool) GetPath(_ tools.Input) string { return s.path }
 func TestRuleForTool_PathToolProducesPathRule(t *testing.T) {
 	reg := newStubRegistry(&stubPathTool{
 		stubPermTool: stubPermTool{name: "Read"},
-		path:         "/tmp/project",
+		path:         "/tmp/project/docs/README.md",
 	})
-	if got := ruleForTool("Read", nil, reg); got != "Read(/tmp/project/**)" {
+	// Inside the project: the rule the dialog promises, the whole project.
+	if got := ruleForTool("Read", nil, reg, "/tmp/project"); got != "Read(/tmp/project/**)" {
 		t.Errorf("ruleForTool = %q, want Read(/tmp/project/**)", got)
+	}
+	// Outside the project, or no project: only that path.
+	if got := ruleForTool("Read", nil, reg, "/srv/other"); got != "Read(/tmp/project/docs/README.md)" {
+		t.Errorf("ruleForTool outside project = %q, want the single file", got)
+	}
+	if got := ruleForTool("Read", nil, reg, ""); got != "Read(/tmp/project/docs/README.md)" {
+		t.Errorf("ruleForTool without project = %q, want the single file", got)
+	}
+}
+
+// TestPathRules_MatchFileToolCalls: file tools have no matcher of their own,
+// so path rules (allow and deny) never matched and "always allow" on a Write
+// asked again on the next Write. The checker now matches them by path.
+func TestPathRules_MatchFileToolCalls(t *testing.T) {
+	file := "/tmp/project/docs/02-architecture.md"
+	cases := []struct {
+		rule string
+		want bool
+	}{
+		{"Write(/tmp/project/**)", true},
+		{"Write(/tmp/project/docs/**)", true},
+		{"Write(/tmp/project/docs/02-architecture.md)", true},
+		{"Write(/tmp/project/docs/*.md)", true},
+		{"Write(/tmp/project/docs/README.md/**)", false}, // a rule the old code wrote
+		{"Write(/tmp/projectX/**)", false},
+		{"Write(/tmp/project/src/**)", false},
+		{"Edit(/tmp/project/**)", false},
+	}
+	for _, tc := range cases {
+		reg := newStubRegistry(&stubPathTool{stubPermTool: stubPermTool{name: "Write"}, path: file})
+		c := NewChecker(CheckerConfig{
+			PermCtx: types.ToolPermissionContext{
+				Mode:             types.PermissionModeDefault,
+				AlwaysAllowRules: types.ToolPermissionRulesBySource{types.RuleSourceProject: {tc.rule}},
+			},
+			Registry: reg,
+		})
+		res, err := c.CanUseTool(context.Background(), "Write", nil, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := res.Behavior == tools.PermissionAllow; got != tc.want {
+			t.Errorf("rule %s on %s: allowed = %v, want %v", tc.rule, file, got, tc.want)
+		}
+	}
+
+	// Deny rules on paths take effect too.
+	reg := newStubRegistry(&stubPathTool{stubPermTool: stubPermTool{name: "Write"}, path: "/etc/passwd"})
+	c := NewChecker(CheckerConfig{
+		PermCtx: types.ToolPermissionContext{
+			Mode:            types.PermissionModeDefault,
+			AlwaysDenyRules: types.ToolPermissionRulesBySource{types.RuleSourceUser: {"Write(/etc/**)"}},
+		},
+		Registry: reg,
+	})
+	res, err := c.CanUseTool(context.Background(), "Write", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Behavior != tools.PermissionDeny {
+		t.Errorf("Write(/etc/**) deny rule on /etc/passwd: behavior = %q, want deny", res.Behavior)
 	}
 }
 
 func TestRuleForTool_NonPathToolProducesBareName(t *testing.T) {
 	reg := newStubRegistry(&stubPermTool{name: "WebFetch"})
-	if got := ruleForTool("WebFetch", nil, reg); got != "WebFetch" {
+	if got := ruleForTool("WebFetch", nil, reg, "/tmp/project"); got != "WebFetch" {
 		t.Errorf("ruleForTool = %q, want WebFetch", got)
 	}
 }
 
 func TestRuleForTool_NilRegistry(t *testing.T) {
-	if got := ruleForTool("WebFetch", nil, nil); got != "WebFetch" {
+	if got := ruleForTool("WebFetch", nil, nil, ""); got != "WebFetch" {
 		t.Errorf("ruleForTool = %q, want WebFetch", got)
 	}
 }

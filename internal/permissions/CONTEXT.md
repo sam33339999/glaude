@@ -2,7 +2,7 @@
 package: permissions
 import_path: internal/permissions
 layer: services
-generated_at: 2026-11-23T08:02:40Z
+generated_at: 2026-11-23T14:09:22Z
 source_files: [ask.go, checker.go, denial.go, filesystem.go, persist.go]
 ---
 
@@ -31,7 +31,7 @@ type Checker interface {
 - **DangerousPathResult** — 3 fields: Dangerous, Matched, Reason
 - **DenialLimits** — 2 fields: MaxConsecutive, MaxTotal
 - **DenialRecord** — 4 fields: ToolName, ToolUseID, Reason, DeniedAt
-- **DenialTrackingState** — 4 fields: DenialCount, LastDeniedAt, RecentDenials
+- **DenialTrackingState** — 5 fields: DenialCount, LastDeniedAt, RecentDenials
 - **PermissionRequest** — 6 fields: ToolName, ToolUseID, Input, ToolResult, FromCodeMode, Note
 - **PersistConfig** — 1 fields: ProjectDir
 
@@ -68,3 +68,5 @@ type Checker interface {
 - **2026-11-18 内核搬回（反转 PR #31）**：本包原于 2026-09-23 逐字提取至外部仓 github.com/tunsuy/agtkeel；因该仓停止维护，经人类决策整併回本仓原始路径。来源：agtkeel main 3a77085＋后续提交，零逻辑改动（仅 import 路径恢复＋gofmt）。内核改动自此直接在本仓进行。
 - **2026-11-18 BF-09/BF-21 ModeFn**：CheckerConfig.ModeFn 可选 live mode 来源（覆盖 PermCtx.Mode 快照）；currentMode() 于 bypass 与 mode-switch 两处消费；nil 时行为不变。锁序 checker.mu→store.mu 无死锁。Checker 接口零变更。
 - **2026-11-18 CM-03**：PermissionRequest/AskRequest +FromCodeMode/Note；AskResponse/PermissionResult +AlwaysInCodeMode。askUser：Note 附加讯息；AlwaysInCodeMode 批准不落项目规则（CodeMode bridge 持久化），与 AlwaysAllow 互斥。Checker 接口零变更。
+- **2026-11-23 並行權限詢問序列化（fix/repetitive-replies）**：主腦的並行工具呼叫與所有 sub-agent 共用一個 checker 與一組 askCh/respCh，TUI 一次只顯示一個對話框。舊碼不序列化：每個新詢問**覆蓋**正在顯示的對話框，使用者的回答被最先讀 respCh 的呼叫者拿走（`AskResponse.ID` 註解說必須相符，卻從未比對），其餘呼叫者一直等到查詢被取消，回 `"context cancelled"`。實機 transcript：4 個並行 Agent 呼叫 3 個 context cancelled、1 個放行；守護測試在舊碼上重現同一結果，且放行的那個拿到的是別的對話框的答案。現在 `askSem`（容量 1、可被 ctx 取消）讓詢問逐一進行；輪到時先以 `allowedByRule` 重比 allow 規則（只比規則、不重跑 PreToolUse hook），前一個對話框選了「always allow」的同類呼叫不再詢問；只接受 ID 相符的回應，丟棄已放棄詢問的過期回答。`DenialTrackingState` 加 mutex（並行 RequestPermission 本來就會同時寫它，-race 測出）。守護測試 ask_concurrency_test.go（`fakeTUI` 模擬覆蓋式單一對話框）。
+- **2026-11-23 檔案工具的路徑規則生效（fix/repetitive-replies）**：Read/Write/Edit/NotebookEdit 沿用 `BaseTool.PreparePermissionMatcher`（nil），`matchPattern` 對帶內容的規則在 matcher 為 nil 時一律不符——**所有** `Write(...)` 類 allow／deny 規則都從未生效；`ruleForTool` 還把檔案存成 `Write(<file>/**)`，連同一個檔案都比對不到，「always allow」形同無效、每次寫檔都再問一次。現在 `resolveMatcherFn` 對沒有 matcher 的 `PathTool` 用 `pathRuleMatcher`（`dir/**` 前綴、含 `*?[` 走 `filepath.Match`、其他為完整路徑）；`ruleForTool` 依對話框文案存 `Tool(<專案>/**)`，專案外只存該檔案。注意：既有的路徑 deny 規則（如 `Write(/etc/**)`）從此開始生效。

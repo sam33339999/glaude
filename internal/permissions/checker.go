@@ -68,6 +68,13 @@ type checker struct {
 	}
 	askCh  chan<- AskRequest
 	respCh <-chan AskResponse
+	// askSem lets one ask at a time reach the user (capacity 1). The TUI
+	// shows a single dialog and askCh/respCh are shared by every caller —
+	// the main loop's parallel tool calls and all sub-agents. Unserialized,
+	// each new ask replaced the open dialog and an answer went to whichever
+	// caller read respCh first, so the other callers waited until their
+	// query was cancelled ("context cancelled").
+	askSem chan struct{}
 	denial *DenialTrackingState
 }
 
@@ -107,6 +114,7 @@ func NewChecker(cfg CheckerConfig) Checker {
 		registry:   cfg.Registry,
 		askCh:      cfg.AskCh,
 		respCh:     cfg.RespCh,
+		askSem:     make(chan struct{}, 1),
 		denial:     &DenialTrackingState{},
 	}
 	if cfg.Persist != nil {
@@ -254,7 +262,7 @@ func (c *checker) RequestPermission(
 		// streak or accumulated total), stop auto-denying and ask the user
 		// directly — the deny rules are fighting the session, not guarding it.
 		if c.shouldFallbackToPrompting() && c.askCh != nil && c.respCh != nil {
-			return c.askUser(ctx, req, "many denials in this session; confirm directly: "+result.Reason)
+			return c.askUser(ctx, req, "many denials in this session; confirm directly: "+result.Reason, false)
 		}
 		c.denial.Record(DenialRecord{
 			ToolName:  req.ToolName,
@@ -275,19 +283,46 @@ func (c *checker) RequestPermission(
 			return tools.PermissionResult{Behavior: tools.PermissionDeny, Reason: result.Reason}, nil
 		}
 
-		return c.askUser(ctx, req, result.Reason)
+		return c.askUser(ctx, req, result.Reason, true)
 	}
 
 	return result, nil
 }
 
+// allowedByRule reports whether an always-allow rule now covers the call.
+// It repeats only the rule match from CanUseTool, not the PreToolUse hook,
+// so a hook never runs twice for one call.
+func (c *checker) allowedByRule(toolName string, input tools.Input) bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	matched, _ := matchRules(c.permCtx.AlwaysAllowRules, toolName, input, c.resolveMatcherFn(toolName, input))
+	return matched
+}
+
 // askUser forwards an AskRequest to the TUI layer and waits for the response.
 // message is the human-readable explanation shown in the permission dialog.
+// Asks are serialized through askSem. When recheckRules is set, the call is
+// matched against the allow rules again once it is its turn: while it waited,
+// the user may have answered "always allow" for an identical call (e.g. one
+// of several parallel Agent calls), and is not asked a second time.
 func (c *checker) askUser(
 	ctx context.Context,
 	req PermissionRequest,
 	message string,
+	recheckRules bool,
 ) (tools.PermissionResult, error) {
+	select {
+	case c.askSem <- struct{}{}:
+	case <-ctx.Done():
+		return tools.PermissionResult{Behavior: tools.PermissionDeny, Reason: "context cancelled"}, nil
+	}
+	defer func() { <-c.askSem }()
+
+	if recheckRules && c.allowedByRule(req.ToolName, req.Input) {
+		c.denial.RecordApproval()
+		return tools.PermissionResult{Behavior: tools.PermissionAllow, Reason: "allowed by a rule added while waiting"}, nil
+	}
+
 	askReq := AskRequest{
 		ID:           req.ToolUseID,
 		ToolName:     req.ToolName,
@@ -306,40 +341,49 @@ func (c *checker) askUser(
 		return tools.PermissionResult{Behavior: tools.PermissionDeny, Reason: "context cancelled"}, nil
 	}
 
-	// Wait for response (60-second deadline handled by the TUI side).
-	select {
-	case resp, ok := <-c.respCh:
+	// Wait for the response to this ask. A response with another ID answers
+	// an earlier dialog whose caller already gave up (its query was
+	// cancelled); it must not be read as this call's decision.
+	var resp AskResponse
+	for {
+		var ok bool
+		select {
+		case resp, ok = <-c.respCh:
+		case <-ctx.Done():
+			return tools.PermissionResult{Behavior: tools.PermissionDeny, Reason: "context cancelled"}, nil
+		}
 		if !ok {
 			return tools.PermissionResult{Behavior: tools.PermissionDeny, Reason: "response channel closed"}, nil
 		}
-		if resp.Decision == tools.PermissionAllow {
-			if resp.AlwaysAllow && !resp.AlwaysInCodeMode {
-				// "Yes, and always allow" — register a rule so subsequent
-				// calls of the same shape are allowed without asking.
-				c.persistAllowRule(ruleForTool(req.ToolName, req.Input, c.registry))
-			}
-			c.denial.RecordApproval()
-			reason := "user approved"
-			if resp.AlwaysInCodeMode {
-				reason = "user approved (always in CodeMode)"
-			} else if resp.AlwaysAllow {
-				reason = "user approved (always allowed)"
-			}
-			return tools.PermissionResult{
-				Behavior:         tools.PermissionAllow,
-				Reason:           reason,
-				AlwaysInCodeMode: resp.AlwaysInCodeMode,
-			}, nil
+		if resp.ID == askReq.ID {
+			break
 		}
-		c.denial.Record(DenialRecord{
-			ToolName:  req.ToolName,
-			ToolUseID: req.ToolUseID,
-			Reason:    "user denied",
-		})
-		return tools.PermissionResult{Behavior: tools.PermissionDeny, Reason: "user denied"}, nil
-	case <-ctx.Done():
-		return tools.PermissionResult{Behavior: tools.PermissionDeny, Reason: "context cancelled"}, nil
 	}
+	if resp.Decision == tools.PermissionAllow {
+		if resp.AlwaysAllow && !resp.AlwaysInCodeMode {
+			// "Yes, and always allow" — register a rule so subsequent
+			// calls of the same shape are allowed without asking.
+			c.persistAllowRule(ruleForTool(req.ToolName, req.Input, c.registry, askReq.ProjectPath))
+		}
+		c.denial.RecordApproval()
+		reason := "user approved"
+		if resp.AlwaysInCodeMode {
+			reason = "user approved (always in CodeMode)"
+		} else if resp.AlwaysAllow {
+			reason = "user approved (always allowed)"
+		}
+		return tools.PermissionResult{
+			Behavior:         tools.PermissionAllow,
+			Reason:           reason,
+			AlwaysInCodeMode: resp.AlwaysInCodeMode,
+		}, nil
+	}
+	c.denial.Record(DenialRecord{
+		ToolName:  req.ToolName,
+		ToolUseID: req.ToolUseID,
+		Reason:    "user denied",
+	})
+	return tools.PermissionResult{Behavior: tools.PermissionDeny, Reason: "user denied"}, nil
 }
 
 // shouldFallbackToPrompting reports whether the denial-tracking state has hit
@@ -350,7 +394,7 @@ func (c *checker) shouldFallbackToPrompting() bool {
 
 // GetDenialCount implements Checker.
 func (c *checker) GetDenialCount() int {
-	return c.denial.DenialCount
+	return c.denial.count()
 }
 
 // currentMode returns the live permission mode: ModeFn when configured
@@ -375,6 +419,13 @@ func (c *checker) resolveMatcherFn(toolName string, input tools.Input) func(stri
 		return nil
 	}
 	fn, _ := t.PreparePermissionMatcher(input)
+	if fn == nil {
+		if pt, ok := t.(tools.PathTool); ok {
+			if p := pt.GetPath(input); p != "" {
+				return pathRuleMatcher(p)
+			}
+		}
+	}
 	return fn
 }
 
