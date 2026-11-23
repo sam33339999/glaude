@@ -2,7 +2,7 @@
 package: state
 import_path: internal/state
 layer: infra
-generated_at: 2026-11-23T08:02:40Z
+generated_at: 2026-11-23T14:09:22Z
 source_files: [store.go]
 ---
 

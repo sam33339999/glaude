@@ -2,7 +2,7 @@
 package: codemode
 import_path: internal/codemode
 layer: unknown
-generated_at: 2026-11-23T08:02:40Z
+generated_at: 2026-11-23T14:09:22Z
 source_files: [catalog.go, hooks.go, moejs.go, runtime.go]
 ---
 
