@@ -2,8 +2,12 @@ package commands
 
 // ModelOption is one /model menu entry (or a resolved /model <ref>).
 type ModelOption struct {
-	// Name is "default", a tier name, or "" for an ad-hoc reference.
+	// Name is "default", a tier name, or "" for an ad-hoc reference or a
+	// provider model.
 	Name string
+	// Group is the provider id for rows listed from a provider's models
+	// table ("" for default and tiers). The /model menu draws a section per group.
+	Group string
 	// Provider is a provider id ("main" = the startup client).
 	Provider string
 	Model    string

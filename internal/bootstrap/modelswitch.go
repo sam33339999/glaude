@@ -46,10 +46,48 @@ func (s *modelSwitcher) Options() []commands.ModelOption {
 			opts = append(opts, s.fromBinding(name, b))
 		}
 	}
+	opts = append(opts, s.providerOptions()...)
 	for i := range opts {
 		opts[i].Current = opts[i].Available && opts[i].Provider == cur.ProviderID && opts[i].Model == cur.Model
 	}
 	return opts
+}
+
+// noModelsReason explains a provider row without a models table.
+const noModelsReason = "no models listed — check some with /provider"
+
+// providerOptions lists every registered provider's models table (no
+// network), one group per provider sorted by id. A provider without models
+// gets one unavailable placeholder row.
+func (s *modelSwitcher) providerOptions() []commands.ModelOption {
+	if s.router == nil {
+		return nil
+	}
+	var out []commands.ModelOption
+	for _, ps := range s.router.store.Providers() {
+		if ps.ID == modeltier.MainProviderID {
+			continue
+		}
+		if len(ps.Models) == 0 {
+			out = append(out, commands.ModelOption{Group: ps.ID, Provider: ps.ID, Reason: noModelsReason})
+			continue
+		}
+		_, clientErr := s.router.client(ps.ID)
+		for _, m := range ps.Models {
+			b, _ := s.router.store.Resolve(ps.ID + ":" + m)
+			o := commands.ModelOption{Group: ps.ID, Provider: ps.ID, Model: m, ContextWindow: b.ContextWindow, MaxTokens: b.MaxTokens}
+			if o.MaxTokens == 0 {
+				o.MaxTokens = s.startup.MaxTokens
+			}
+			if clientErr != nil {
+				o.Reason = clientErr.Error()
+			} else {
+				o.Available = true
+			}
+			out = append(out, o)
+		}
+	}
+	return out
 }
 
 func (s *modelSwitcher) defaultOption() commands.ModelOption {
