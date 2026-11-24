@@ -2,7 +2,7 @@
 package: tools
 import_path: internal/tools
 layer: tools
-generated_at: 2026-11-23T14:09:22Z
+generated_at: 2026-11-24T06:00:34Z
 source_files: [base.go, registry.go, tool.go]
 ---
 
@@ -94,16 +94,16 @@ type Tool interface {
 
 ## Structs
 
-- **AgentSpawnRequest** — 11 fields: Description, Prompt, SystemPrompt, AllowedTools, DenyTools, MaxTurns, AgentType, Model, ...
+- **AgentSpawnRequest** — 13 fields: Description, Prompt, SystemPrompt, AllowedTools, DenyTools, MaxTurns, AgentType, Model, ...
 - **BaseTool**
 - **InputSchema** — 3 fields: Type, Properties, Required
 - **MCPInfo** — 2 fields: ServerName, ToolName
 - **PermissionResult** — 3 fields: Behavior, Reason, AlwaysInCodeMode
 - **Registry** — 4 fields
-- **Result** — 3 fields: Content, IsError, ContextModifier
+- **Result** — 4 fields: Content, HookStopReason, IsError, ContextModifier
 - **SearchOrReadResult** — 3 fields: IsSearch, IsRead, Path
 - **SnapshotSlot** — 2 fields
-- **UseContext** — 12 fields: Ctx, AbortCh, PermCtx, Coordinator, AgentID, ExecFilter, NonInteractivePermissions, TodoAppendOnly, ...
+- **UseContext** — 14 fields: Ctx, AbortCh, PermCtx, Coordinator, AgentID, ExecFilter, NonInteractivePermissions, TodoAppendOnly, ...
 - **ValidationResult** — 2 fields: OK, Reason
 
 ## Function Types
@@ -136,20 +136,20 @@ type Tool interface {
 
 **Exported type references (files that use types from this package):**
 - `AgentCoordinator` → `internal/bootstrap/wire.go`, `internal/coordinator/adapter.go`, `internal/tools/agent/agent_test.go` (test), `internal/tools/tasks/tasks_test.go` (test), `internal/tui/init.go` + 1 more
-- `AgentSpawnRequest` → `internal/bootstrap/acp.go`, `internal/coordinator/adapter.go`, `internal/coordinator/adapter_test.go` (test), `internal/tools/agent/agent.go`, `internal/tools/agent/agent_test.go` (test) + 2 more
+- `AgentSpawnRequest` → `internal/bootstrap/acp.go`, `internal/coordinator/adapter.go`, `internal/coordinator/adapter_test.go` (test), `internal/tools/agent/agent.go`, `internal/tools/agent/agent_test.go` (test) + 3 more
 - `BaseTool` → `internal/bootstrap/wire_fork_test.go` (test), `internal/codemode/catalog_test.go` (test), `internal/engine/engine_test.go` (test), `internal/mcp/adapter.go`, `internal/tools/agent/agent.go` + 20 more
 - `InputSchema` → `internal/bootstrap/wire_fork_test.go` (test), `internal/codemode/catalog_test.go` (test), `internal/engine/orchestration_test.go` (test), `internal/mcp/adapter.go`, `internal/permissions/checker_test.go` (test) + 21 more
 - `MCPInfo` → `internal/mcp/adapter.go`
 - `MCPToolInfo` → `internal/mcp/adapter.go`, `internal/tools/mcp/mcp_test.go` (test)
-- `OnProgressFn` → `internal/bootstrap/wire_fork_test.go` (test), `internal/codemode/catalog_test.go` (test), `internal/engine/btw_test.go` (test), `internal/engine/orchestration_test.go` (test), `internal/mcp/adapter.go` + 22 more
+- `OnProgressFn` → `internal/bootstrap/wire_fork_test.go` (test), `internal/codemode/catalog_test.go` (test), `internal/engine/btw_test.go` (test), `internal/engine/orchestration_test.go` (test), `internal/engine/tool_hooks_test.go` (test) + 23 more
 - `PathTool` → `internal/permissions/checker.go`, `internal/permissions/persist.go`, `internal/tools/fileops/fileedit.go`, `internal/tools/fileops/fileread.go`, `internal/tools/fileops/filewrite.go` + 1 more
 - `PermissionContext` → `internal/bootstrap/wire_fork_test.go` (test), `internal/codemode/catalog_test.go` (test), `internal/engine/compaction.go`, `internal/engine/orchestration_test.go` (test), `internal/mcp/adapter.go` + 22 more
-- `PermissionResult` → `internal/engine/btw_test.go` (test), `internal/engine/orchestration.go`, `internal/engine/orchestration_test.go` (test), `internal/mcp/adapter.go`, `internal/permissions/ask.go` + 14 more
+- `PermissionResult` → `internal/engine/btw_test.go` (test), `internal/engine/orchestration.go`, `internal/engine/orchestration_test.go` (test), `internal/engine/tool_hooks_test.go` (test), `internal/mcp/adapter.go` + 16 more
 - `Registry` → `internal/bootstrap/mcp.go`, `internal/bootstrap/mcp_connect.go`, `internal/bootstrap/tools.go`, `internal/bootstrap/wire.go`, `internal/codemode/catalog.go` + 8 more
-- `Result` → `internal/bootstrap/wire_fork_test.go` (test), `internal/codemode/catalog_test.go` (test), `internal/engine/btw_test.go` (test), `internal/engine/orchestration_test.go` (test), `internal/mcp/adapter.go` + 24 more
+- `Result` → `internal/bootstrap/wire_fork_test.go` (test), `internal/codemode/catalog_test.go` (test), `internal/engine/btw_test.go` (test), `internal/engine/orchestration_test.go` (test), `internal/engine/tool_hooks_test.go` (test) + 25 more
 - `SnapshotSlot` → `internal/engine/btw_test.go` (test), `internal/tui/btw_test.go` (test), `internal/tui/cmds.go`, `internal/tui/model.go`
-- `Tool` → `internal/bootstrap/wire_fork_test.go` (test), `internal/engine/btw_test.go` (test), `internal/engine/engine.go`, `internal/engine/orchestration_test.go` (test), `internal/mcp/adapter.go` + 40 more
-- `UseContext` → `internal/bootstrap/acp.go`, `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/mcp.go`, `internal/bootstrap/mcp_connect_test.go` (test), `internal/bootstrap/run.go` + 64 more
+- `Tool` → `internal/bootstrap/wire_fork_test.go` (test), `internal/engine/btw_test.go` (test), `internal/engine/engine.go`, `internal/engine/orchestration_test.go` (test), `internal/engine/tool_hooks.go` + 44 more
+- `UseContext` → `internal/bootstrap/acp.go`, `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/mcp.go`, `internal/bootstrap/mcp_connect_test.go` (test), `internal/bootstrap/run.go` + 69 more
 - `ValidationResult` → `internal/engine/orchestration_test.go` (test), `internal/mcp/adapter.go`, `internal/permissions/checker_test.go` (test), `internal/tools/fileops/fileread.go`, `internal/tools/fileops/glob.go` + 5 more
 
 ## Dependencies

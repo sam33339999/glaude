@@ -2,21 +2,26 @@
 package: codemode
 import_path: internal/tools/codemode
 layer: tools
-generated_at: 2026-11-23T14:09:22Z
+generated_at: 2026-11-24T06:00:34Z
 source_files: [approvals.go, bridge.go, replay.go, snippets.go, state.go, tool.go]
 ---
 
 # internal/tools/codemode
 
-> Layer: **Tools** · Files: 6 · Interfaces: 0 · Structs: 0 · Functions: 1
+> Layer: **Tools** · Files: 6 · Interfaces: 0 · Structs: 0 · Functions: 2
+
+## Function Types
+
+- `Option` — `func(*codeModeTool)`
 
 ## Functions
 
-- `NewCodeModeTool(reg *tools.Registry, checker permissions.Checker, engine codemode.Runtime, dataDir string) tools.Tool`
+- `NewCodeModeTool(reg *tools.Registry, checker permissions.Checker, engine codemode.Runtime, dataDir string, opts ...Option) tools.Tool`
+- `WithToolHooks(d *hooks.Dispatcher) Option`
 
 ## Dependencies
 
-**Imports:** `internal/codemode`, `internal/permissions`, `internal/tools`
+**Imports:** `internal/codemode`, `internal/hooks`, `internal/permissions`, `internal/textutil`, `internal/tools`, `pkg/types`
 
 **Imported by:** `internal/bootstrap`
 

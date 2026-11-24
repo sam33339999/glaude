@@ -3,11 +3,16 @@ package codemode
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
+	"strings"
+
 	"github.com/tunsuy/glaude/internal/codemode"
+	"github.com/tunsuy/glaude/internal/hooks"
 	"github.com/tunsuy/glaude/internal/permissions"
 	"github.com/tunsuy/glaude/internal/tools"
+	"github.com/tunsuy/glaude/pkg/types"
 )
 
 // bridge builds the CallFunc dispatching one inner tool call through the SAME
@@ -25,6 +30,9 @@ func (t *codeModeTool) bridge(ctx context.Context, outer *tools.UseContext, st *
 		if !ok {
 			return nil, fmt.Errorf("unknown tool %q (use codemode.search to discover tools)", name)
 		}
+		if reason := st.hookStopReason(); reason != "" {
+			return nil, fmt.Errorf("%s: skipped: %s", name, reason)
+		}
 		st.recordTool(name)
 		inner := &tools.UseContext{Ctx: ctx}
 		if outer != nil {
@@ -33,6 +41,8 @@ func (t *codeModeTool) bridge(ctx context.Context, outer *tools.UseContext, st *
 			inner.Coordinator = outer.Coordinator
 			inner.AgentID = outer.AgentID
 			inner.MemoryStore = outer.MemoryStore
+			inner.SessionID = outer.SessionID
+			inner.TranscriptPath = outer.TranscriptPath
 		}
 
 		vr, err := tool.ValidateInput(tools.Input(input), inner)
@@ -41,6 +51,46 @@ func (t *codeModeTool) bridge(ctx context.Context, outer *tools.UseContext, st *
 		}
 		if !vr.OK {
 			return nil, fmt.Errorf("%s: invalid input: %s", name, vr.Reason)
+		}
+
+		// PreToolUse hooks: same decisions as a direct call (deny / allow /
+		// ask / updatedInput). "continue": false lets this call finish and
+		// skips the rest of the execution. Notices and additionalContext go
+		// to the execution log, which is returned to the model.
+		ev := hooks.ToolEvent{
+			SessionID:      inner.SessionID,
+			TranscriptPath: inner.TranscriptPath,
+			Cwd:            outerWorkingDir(outer),
+			ToolName:       name,
+			ToolUseID:      fmt.Sprintf("codemode-%d", t.callSeq.Add(1)),
+		}
+		hookAllowed, hookAsk, hookReason := false, false, ""
+		if t.hooks.Has(types.HookPreToolUse, name) {
+			ev.ToolInput = input
+			pre := t.hooks.RunPreToolUse(ctx, ev)
+			st.hookCommon(pre.Common)
+			if ctx.Err() != nil {
+				return nil, fmt.Errorf("%s: interrupted while PreToolUse hooks were running", name)
+			}
+			if pre.Decision == hooks.DecisionDeny {
+				return nil, fmt.Errorf("%s: denied: %s", name, pre.Reason)
+			}
+			if len(pre.UpdatedInput) > 0 {
+				input = pre.UpdatedInput
+				vr, err := tool.ValidateInput(tools.Input(input), inner)
+				if err != nil {
+					return nil, fmt.Errorf("%s: input rewritten by a PreToolUse hook: %w", name, err)
+				}
+				if !vr.OK {
+					return nil, fmt.Errorf("%s: input rewritten by a PreToolUse hook is invalid: %s", name, vr.Reason)
+				}
+			}
+			switch pre.Decision {
+			case hooks.DecisionAllow:
+				hookAllowed = true
+			case hooks.DecisionAsk:
+				hookAsk, hookReason = true, pre.Reason
+			}
 		}
 
 		prelim, err := tool.CheckPermissions(tools.Input(input), inner)
@@ -52,21 +102,68 @@ func (t *codeModeTool) bridge(ctx context.Context, outer *tools.UseContext, st *
 		}
 
 		isWrite := !tool.IsReadOnly(tools.Input(input))
-		if t.checker != nil {
+		switch {
+		case t.checker == nil:
+		case hookAllowed:
+			// The hook skips the default prompt; rules and checks still apply.
+			if err := t.hookAllowed(ctx, name, input, inner); err != nil {
+				if !errors.Is(err, errHookAsk) {
+					return nil, err
+				}
+				if err := t.authorize(ctx, name, input, inner, prelim, st, isWrite); err != nil {
+					return nil, err
+				}
+			}
+		case hookAsk:
+			if err := t.requestHookAsk(ctx, name, input, inner, prelim, hookReason); err != nil {
+				return nil, err
+			}
+		default:
 			if err := t.authorize(ctx, name, input, inner, prelim, st, isWrite); err != nil {
 				return nil, err
 			}
 		}
 
 		res, err := tool.Call(tools.Input(input), inner, nil)
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", name, err)
-		}
-		if res.IsError {
-			return nil, fmt.Errorf("%s: %v", name, res.Content)
+		ev.ToolInput = input
+		if err != nil || res == nil || res.IsError {
+			msg := ""
+			switch {
+			case err != nil:
+				msg = err.Error()
+			case res == nil:
+				msg = "no result"
+			default:
+				msg = fmt.Sprint(res.Content)
+			}
+			if t.hooks.Has(types.HookPostToolUseFailure, name) {
+				post := t.hooks.RunPostToolUseFailure(ctx, ev, msg, ctx.Err() != nil)
+				st.hookCommon(post.Common)
+				if len(post.Feedback) > 0 {
+					msg += "\n" + strings.Join(post.Feedback, "\n")
+				}
+			}
+			return nil, fmt.Errorf("%s: %s", name, msg)
 		}
 		if isWrite {
 			st.recordSideEffect(name, input) // audit: only executed writes
+		}
+		if t.hooks.Has(types.HookPostToolUse, name) {
+			resp, merr := json.Marshal(res.Content)
+			if merr != nil {
+				resp = nil
+			}
+			post := t.hooks.RunPostToolUse(ctx, ev, resp)
+			st.hookCommon(post.Common)
+			// The tool already ran: feedback is logged, not turned into an error.
+			st.hookLog(post.Feedback)
+			replacement := post.UpdatedToolOutput
+			if len(post.UpdatedMCPToolOutput) > 0 && strings.HasPrefix(name, "mcp__") {
+				replacement = post.UpdatedMCPToolOutput
+			}
+			if len(replacement) > 0 {
+				return replacement, nil
+			}
 		}
 		switch c := res.Content.(type) {
 		case string:
@@ -113,6 +210,67 @@ func (t *codeModeTool) authorize(
 		return nil // persisted CodeMode-scoped approval (user-granted, revocable)
 	}
 	return t.requestUser(ctx, name, input, inner, prelim, st, "")
+}
+
+// errHookAsk reports that a call a hook allowed still needs the normal flow
+// (an ask rule or a tool check applies).
+var errHookAsk = errors.New("hook allow needs confirmation")
+
+// hookAllowed checks a call a PreToolUse hook allowed: nil = run it,
+// errHookAsk = go through the normal authorization, other = denied.
+func (t *codeModeTool) hookAllowed(ctx context.Context, name string, input json.RawMessage, inner *tools.UseContext) error {
+	hac, ok := t.checker.(permissions.HookAwareChecker)
+	if !ok {
+		return errHookAsk
+	}
+	res, err := hac.CanUseToolHookAllowed(ctx, name, tools.Input(input), inner)
+	switch {
+	case err != nil:
+		return fmt.Errorf("%s: permission check: %w", name, err)
+	case res.Behavior == tools.PermissionDeny:
+		return fmt.Errorf("%s: denied: %s", name, firstNonEmpty(res.Reason, "permission denied"))
+	case res.Behavior == tools.PermissionAllow:
+		return nil
+	}
+	return errHookAsk
+}
+
+// requestHookAsk asks the user because a PreToolUse hook answered "ask". The
+// approval is not cached for the execution: the hook decides per call.
+func (t *codeModeTool) requestHookAsk(
+	ctx context.Context, name string, input json.RawMessage,
+	inner *tools.UseContext, prelim tools.PermissionResult, reason string,
+) error {
+	perm, err := t.checker.RequestPermission(ctx, permissions.PermissionRequest{
+		ToolName:     name,
+		ToolUseID:    fmt.Sprintf("codemode-%d", t.callSeq.Add(1)),
+		Input:        tools.Input(input),
+		ToolResult:   prelim,
+		FromCodeMode: true,
+		ForceAsk:     true,
+		HookReason:   reason,
+	}, inner)
+	if err != nil {
+		return fmt.Errorf("%s: permission check: %w", name, err)
+	}
+	if perm.Behavior == tools.PermissionDeny {
+		return fmt.Errorf("%s: denied: %s", name, firstNonEmpty(perm.Reason, "permission denied by user or policy"))
+	}
+	return nil
+}
+
+func outerWorkingDir(outer *tools.UseContext) string {
+	if outer == nil {
+		return ""
+	}
+	return outer.WorkingDir
+}
+
+func firstNonEmpty(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
 }
 
 // requestUser runs the interactive Ask flow and caches an approval for this

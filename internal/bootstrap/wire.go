@@ -232,12 +232,11 @@ func BuildContainer(opts ContainerOptions) (*AppContainer, error) {
 
 	// Build the permission checker with the tool registry and channels.
 	permChecker := permissions.NewChecker(permissions.CheckerConfig{
-		PermCtx:    appState.ToolPermissionContext,
-		Dispatcher: hooks.NewDispatcher(nil, false), // Empty dispatcher (no hooks configured yet)
-		Registry:   reg,
-		AskCh:      askCh,
-		RespCh:     respCh,
-		Persist:    &permissions.PersistConfig{ProjectDir: opts.WorkingDir},
+		PermCtx:  appState.ToolPermissionContext,
+		Registry: reg,
+		AskCh:    askCh,
+		RespCh:   respCh,
+		Persist:  &permissions.PersistConfig{ProjectDir: opts.WorkingDir},
 		// BF-09/BF-21: live mode from AppState (Shift+Tab cycle / plan tools).
 		ModeFn: func() types.PermissionMode {
 			return store.GetState().ToolPermissionContext.Mode
@@ -245,7 +244,8 @@ func BuildContainer(opts ContainerOptions) (*AppContainer, error) {
 	})
 	// CM-01: CodeMode sandbox tool — every inner call goes through permChecker.
 	// CM-02: dataDir roots history/spill/controlled-import modules.
-	reg.Register(cmtool.NewCodeModeTool(reg, permChecker, cmengine.NewMoejsRuntime(), filepath.Join(opts.HomeDir, ".glaude", "codemode")))
+	toolHooks := buildToolHooks(settings, opts, store, permChecker)
+	reg.Register(cmtool.NewCodeModeTool(reg, permChecker, cmengine.NewMoejsRuntime(), filepath.Join(opts.HomeDir, ".glaude", "codemode"), cmtool.WithToolHooks(toolHooks)))
 
 	// ── Phase 7.5: StopHook registry (memory extraction) ────────────────────
 	stopHooks := engine.NewStopHookRegistry()
@@ -270,6 +270,7 @@ func BuildContainer(opts ContainerOptions) (*AppContainer, error) {
 		Registry:          reg,
 		Model:             model,
 		PermissionChecker: permChecker,
+		ToolHooks:         toolHooks,
 		StopHooks:         stopHooks,
 		MsgQueue:          mq,
 		MainContextWindow: router.store.MainContextWindow(),
@@ -390,12 +391,11 @@ func BuildContainerWithClient(opts ContainerOptions, client api.Client) (*AppCon
 	reg.Register(interact.NewAskUserQuestionTool(qAskCh, qRespCh))
 
 	permChecker := permissions.NewChecker(permissions.CheckerConfig{
-		PermCtx:    appState.ToolPermissionContext,
-		Dispatcher: hooks.NewDispatcher(nil, false),
-		Registry:   reg,
-		AskCh:      askCh,
-		RespCh:     respCh,
-		Persist:    &permissions.PersistConfig{ProjectDir: opts.WorkingDir},
+		PermCtx:  appState.ToolPermissionContext,
+		Registry: reg,
+		AskCh:    askCh,
+		RespCh:   respCh,
+		Persist:  &permissions.PersistConfig{ProjectDir: opts.WorkingDir},
 		// BF-09/BF-21: live mode from AppState (Shift+Tab cycle / plan tools).
 		ModeFn: func() types.PermissionMode {
 			return store.GetState().ToolPermissionContext.Mode
@@ -403,7 +403,8 @@ func BuildContainerWithClient(opts ContainerOptions, client api.Client) (*AppCon
 	})
 	// CM-01: CodeMode sandbox tool — every inner call goes through permChecker.
 	// CM-02: dataDir roots history/spill/controlled-import modules.
-	reg.Register(cmtool.NewCodeModeTool(reg, permChecker, cmengine.NewMoejsRuntime(), filepath.Join(opts.HomeDir, ".glaude", "codemode")))
+	toolHooks := buildToolHooks(settings, opts, store, permChecker)
+	reg.Register(cmtool.NewCodeModeTool(reg, permChecker, cmengine.NewMoejsRuntime(), filepath.Join(opts.HomeDir, ".glaude", "codemode"), cmtool.WithToolHooks(toolHooks)))
 
 	// ── Phase 7.5: StopHook registry ─────────────────────────────────────────
 	stopHooksTest := engine.NewStopHookRegistry()
@@ -424,6 +425,7 @@ func BuildContainerWithClient(opts ContainerOptions, client api.Client) (*AppCon
 		Registry:          reg,
 		Model:             model,
 		PermissionChecker: permChecker,
+		ToolHooks:         toolHooks,
 		StopHooks:         stopHooksTest,
 		MsgQueue:          mqTest,
 		MainContextWindow: router.store.MainContextWindow(),
@@ -489,6 +491,28 @@ func settingsAutoMemoryEnabled(settings *config.LayeredSettings) *bool {
 		return nil
 	}
 	return settings.Merged.AutoMemoryEnabled
+}
+
+// buildToolHooks builds the settings.json PreToolUse/PostToolUse dispatcher.
+func buildToolHooks(settings *config.LayeredSettings, opts ContainerOptions, store *state.AppStateStore, checker permissions.Checker) *hooks.Dispatcher {
+	cfg := hooks.Config{
+		ProjectDir: opts.WorkingDir,
+		ModeFn: func() string {
+			return string(store.GetState().ToolPermissionContext.Mode)
+		},
+		DebugLogf: engineDebugLogf(opts),
+	}
+	// A hook's "if" filter uses the permission-rule syntax ("Bash(git *)").
+	if hac, ok := checker.(permissions.HookAwareChecker); ok {
+		cfg.IfMatcher = func(rule, toolName string, input json.RawMessage) bool {
+			return hac.MatchRule(rule, toolName, tools.Input(input))
+		}
+	}
+	if settings != nil {
+		cfg.Hooks = settings.Merged.Hooks
+		cfg.Disabled = settings.Merged.DisableAllHooks != nil && *settings.Merged.DisableAllHooks
+	}
+	return hooks.NewDispatcher(cfg)
 }
 
 func registerMemoryStopHooks(
@@ -626,6 +650,9 @@ func buildRunAgentFn(
 			AbortCh:    make(chan struct{}),
 			AgentID:    string(agentID),
 			WorkingDir: st.WorkingDir,
+			// Tool hooks of a sub-agent report the parent session.
+			SessionID:      req.SessionID,
+			TranscriptPath: req.TranscriptPath,
 		}
 
 		// Run the query loop.

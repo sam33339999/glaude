@@ -179,6 +179,11 @@ func (m *SessionManager) Close() error {
 // helpers
 // ---------------------------------------------------------------------------
 
+// TranscriptPath returns the JSONL file path of session sid under projectDir.
+func TranscriptPath(projectDir string, sid types.SessionId) (string, error) {
+	return sessionPath(projectDir, sid)
+}
+
 // sessionPath returns the JSONL file path for the given project + session.
 // Path: <homeDir?>/.glaude/projects/<projectHash>/<sessionId>.jsonl
 // For simplicity, the path is rooted under projectDir/.glaude/projects/ here.

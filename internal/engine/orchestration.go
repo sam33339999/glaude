@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/tunsuy/glaude/internal/hooks"
 	"github.com/tunsuy/glaude/internal/permissions"
 	"github.com/tunsuy/glaude/internal/tools"
 	"github.com/tunsuy/glaude/pkg/types"
@@ -23,6 +24,8 @@ type toolCall struct {
 	id    string
 	name  string
 	input json.RawMessage
+	// concurrent is set while the call runs in a concurrent batch.
+	concurrent bool
 }
 
 // toolBatch is a group of tool calls that should be executed together.
@@ -94,11 +97,12 @@ func runTools(
 	uctx *tools.UseContext,
 	msgCh chan<- Msg,
 	permChecker permissions.Checker,
+	th *toolHooks,
 ) ([]types.ContentBlock, error) {
 	var allResults []types.ContentBlock
 
 	for _, batch := range batches {
-		results, err := executeBatch(ctx, batch, registry, uctx, msgCh, permChecker)
+		results, err := executeBatch(ctx, batch, registry, uctx, msgCh, permChecker, th)
 		if err != nil {
 			return allResults, err
 		}
@@ -115,11 +119,12 @@ func executeBatch(
 	uctx *tools.UseContext,
 	msgCh chan<- Msg,
 	permChecker permissions.Checker,
+	th *toolHooks,
 ) ([]types.ContentBlock, error) {
 	if batch.concurrent {
-		return executeConcurrentBatch(ctx, batch.calls, registry, uctx, msgCh, permChecker)
+		return executeConcurrentBatch(ctx, batch.calls, registry, uctx, msgCh, permChecker, th)
 	}
-	return executeSerialBatch(ctx, batch.calls, registry, uctx, msgCh, permChecker)
+	return executeSerialBatch(ctx, batch.calls, registry, uctx, msgCh, permChecker, th)
 }
 
 // executeConcurrentBatch runs all calls in parallel up to the concurrency limit.
@@ -130,6 +135,7 @@ func executeConcurrentBatch(
 	uctx *tools.UseContext,
 	msgCh chan<- Msg,
 	permChecker permissions.Checker,
+	th *toolHooks,
 ) ([]types.ContentBlock, error) {
 	limit := maxToolConcurrency()
 	sem := make(chan struct{}, limit)
@@ -151,7 +157,8 @@ func executeConcurrentBatch(
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			result, err := executeOneTool(ctx, tc, registry, uctx, msgCh, permChecker)
+			tc.concurrent = len(calls) > 1
+			result, err := executeOneTool(ctx, tc, registry, uctx, msgCh, permChecker, th)
 			if err != nil {
 				errCh <- err
 				return
@@ -188,10 +195,11 @@ func executeSerialBatch(
 	uctx *tools.UseContext,
 	msgCh chan<- Msg,
 	permChecker permissions.Checker,
+	th *toolHooks,
 ) ([]types.ContentBlock, error) {
 	var results []types.ContentBlock
 	for _, tc := range calls {
-		result, err := executeOneTool(ctx, tc, registry, uctx, msgCh, permChecker)
+		result, err := executeOneTool(ctx, tc, registry, uctx, msgCh, permChecker, th)
 		if err != nil {
 			return results, err
 		}
@@ -211,7 +219,15 @@ func executeOneTool(
 	uctx *tools.UseContext,
 	msgCh chan<- Msg,
 	permChecker permissions.Checker,
+	th *toolHooks,
 ) (types.ContentBlock, error) {
+	// A hook returned "continue": false earlier in this batch: the remaining
+	// calls are skipped (each still gets a tool_result).
+	if stop, reason := th.stopped(); stop {
+		return refusedToolResult(ctx, tc, "skipped: "+firstNonEmptyStr(reason, "a hook stopped processing"), msgCh), nil
+	}
+	th.warn(ctx, msgCh)
+
 	t, ok := registry.Get(tc.name)
 	if !ok {
 		// Unknown tool — emit a ToolResult event so callers/tests can observe
@@ -266,12 +282,60 @@ func executeOneTool(
 		}
 	}
 
+	// PreToolUse hooks (settings.json "hooks"): run before the permission
+	// pipeline and may deny, allow (skip the prompt), ask, or rewrite input.
+	hookAllowed, hookAsk, hookAskReason := false, false, ""
+	var hookContext []string
+	if th.has(types.HookPreToolUse, tc.name) {
+		pre := th.pre(ctx, tc, uctx, msgCh)
+		if ctx.Err() != nil {
+			// Interrupted while a hook ran: its verdict is unknown, so do not run.
+			return refusedToolResult(ctx, tc, "interrupted while PreToolUse hooks were running", msgCh), nil
+		}
+		if pre.Decision == hooks.DecisionDeny {
+			return refusedToolResult(ctx, tc, pre.Reason, msgCh), nil
+		}
+		if len(pre.UpdatedInput) > 0 {
+			tc.input = pre.UpdatedInput
+			if reason := recheckRewrittenInput(t, tc, uctx); reason != "" {
+				return refusedToolResult(ctx, tc, reason, msgCh), nil
+			}
+		}
+		switch pre.Decision {
+		case hooks.DecisionAllow:
+			hookAllowed = true
+		case hooks.DecisionAsk:
+			hookAsk, hookAskReason = true, pre.Reason
+		}
+		hookContext = hookReminders(pre.AdditionalContext)
+	}
+
+	// A hook "allow" only skips the default prompt: deny and ask rules, plan
+	// mode and the tool's own safety checks still apply.
+	if hookAllowed && permChecker != nil {
+		hookAllowed = false
+		if hac, ok := permChecker.(permissions.HookAwareChecker); ok {
+			res, err := hac.CanUseToolHookAllowed(ctx, tc.name, tc.input, uctx)
+			switch {
+			case err != nil:
+				return refusedToolResult(ctx, tc, fmt.Sprintf("permission check error: %v", err), msgCh), nil
+			case res.Behavior == tools.PermissionDeny:
+				return refusedToolResult(ctx, tc, firstNonEmptyStr(res.Reason, "permission denied"), msgCh), nil
+			case res.Behavior == tools.PermissionAllow:
+				hookAllowed = true
+			}
+			// Ask (an ask rule or a tool check): fall through to the normal flow.
+		}
+	}
+
 	// Permission check (HIL: Human-in-the-Loop).
-	if permChecker != nil {
+	if permChecker != nil && !hookAllowed {
 		permReq := permissions.PermissionRequest{
-			ToolName:  tc.name,
-			ToolUseID: tc.id,
-			Input:     tc.input,
+			ToolName:   tc.name,
+			ToolUseID:  tc.id,
+			Input:      tc.input,
+			ForceAsk:   hookAsk,
+			HookReason: hookAskReason,
 		}
 
 		var permResult tools.PermissionResult
@@ -286,6 +350,9 @@ func executeOneTool(
 			}
 			if permErr == nil && permResult.Behavior == tools.PermissionAsk {
 				permResult = tools.PermissionResult{Behavior: tools.PermissionDeny, Reason: "needs permission; ask the main conversation instead"}
+			}
+			if permErr == nil && hookAsk && permResult.Behavior != tools.PermissionDeny {
+				permResult = tools.PermissionResult{Behavior: tools.PermissionDeny, Reason: "a PreToolUse hook asked for confirmation; ask the main conversation instead"}
 			}
 		} else {
 			permResult, permErr = permChecker.RequestPermission(ctx, permReq, uctx)
@@ -346,6 +413,10 @@ func executeOneTool(
 		contentStr = callErr.Error()
 		isError = true
 	} else if callResult != nil {
+		// A tool that ran hooks itself (CodeMode) may ask to stop the loop.
+		if callResult.HookStopReason != "" {
+			th.requestStop(callResult.HookStopReason)
+		}
 		// Apply context modifier for serial tools.
 		if callResult.ContextModifier != nil && !t.IsConcurrencySafe(tc.input) {
 			callResult.ContextModifier(uctx)
@@ -362,6 +433,29 @@ func executeOneTool(
 	}
 	if resultBlocks == nil {
 		resultBlocks = []types.ContentBlock{{Type: types.ContentTypeText, Text: &contentStr}}
+	}
+
+	// PostToolUse / PostToolUseFailure hooks: feedback and extra context are
+	// appended to the tool result so the model sees them.
+	var content any
+	if callResult != nil {
+		content = callResult.Content
+	}
+	if post, ok := th.post(ctx, tc, uctx, msgCh, callErr != nil || isError, toolResponseJSON(content, contentStr), contentStr); ok {
+		replacement := post.UpdatedToolOutput
+		if len(post.UpdatedMCPToolOutput) > 0 && isMCPTool(tc.name) {
+			replacement = post.UpdatedMCPToolOutput
+		}
+		if len(replacement) > 0 {
+			contentStr = mcpOutputText(replacement)
+			resultBlocks = []types.ContentBlock{{Type: types.ContentTypeText, Text: strPtr(contentStr)}}
+		}
+		hookContext = append(hookContext, post.Feedback...)
+		hookContext = append(hookContext, hookReminders(post.AdditionalContext)...)
+	}
+	for _, extra := range hookContext {
+		resultBlocks = append(resultBlocks, types.ContentBlock{Type: types.ContentTypeText, Text: strPtr(extra)})
+		contentStr += "\n\n" + extra
 	}
 
 	// Emit ToolResult msg.

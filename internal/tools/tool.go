@@ -106,6 +106,10 @@ type AgentSpawnRequest struct {
 	Background   bool   // if true, don't block for completion
 	AgentName    string // human-readable name for routing
 	CacheParams  any    // opaque; cast to *engine.CacheSafeParams at wire time
+	// SessionID / TranscriptPath of the parent session, passed on to the
+	// sub-agent's tool hooks.
+	SessionID      string
+	TranscriptPath string
 }
 
 // UseContext is the per-call context passed into Tool methods.
@@ -150,6 +154,10 @@ type UseContext struct {
 	// so delegated agents and worktree sessions operate in the right directory.
 	// Empty means fall back to the process CWD.
 	WorkingDir string
+	// SessionID and TranscriptPath identify the session for tool hooks
+	// (settings.json "hooks" stdin payload). Empty when unknown.
+	SessionID      string
+	TranscriptPath string
 }
 
 // ValidationResult is the output of ValidateInput.
@@ -172,6 +180,10 @@ type PermissionResult struct {
 type Result struct {
 	// Content is the structured result data passed back to the LLM.
 	Content any
+	// HookStopReason, when set, asks the agent loop to stop after this
+	// batch: a tool hook run inside the tool (CodeMode) returned
+	// "continue": false.
+	HookStopReason string
 	// IsError indicates the call failed (content holds error message).
 	IsError bool
 	// ContextModifier optionally mutates the UseContext after the call.

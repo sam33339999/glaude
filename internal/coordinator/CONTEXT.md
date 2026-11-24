@@ -2,7 +2,7 @@
 package: coordinator
 import_path: internal/coordinator
 layer: core
-generated_at: 2026-11-23T14:09:22Z
+generated_at: 2026-11-24T06:00:34Z
 source_files: [adapter.go, coordinator.go, prompt.go]
 ---
 
@@ -35,7 +35,7 @@ type Coordinator interface {
 - **Event** — 10 fields: Kind, AgentID, Description, AgentName, AgentType, Activity, Detail, Status, ...
 - **MCPClientInfo** — 1 fields: Name
 - **ProgressEvent** — 6 fields: AgentID, Description, AgentName, AgentType, Activity, Detail
-- **SpawnRequest** — 12 fields: Description, SubagentType, Prompt, Model, AllowedTools, DenyTools, MaxTurns, ParentAgentID, ...
+- **SpawnRequest** — 14 fields: Description, SubagentType, Prompt, Model, AllowedTools, DenyTools, MaxTurns, ParentAgentID, ...
 - **TaskNotification** — 5 fields: TaskID, Status, Summary, Result, Usage
 
 ## Function Types
@@ -86,7 +86,7 @@ type Coordinator interface {
 
 ## Dependencies
 
-**Imports:** `internal/tools`, `pkg/utils/ids`
+**Imports:** `internal/textutil`, `internal/tools`, `pkg/utils/ids`
 
 **Imported by:** `internal/bootstrap`, `internal/tui`
 

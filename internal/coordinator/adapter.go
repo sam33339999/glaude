@@ -41,6 +41,8 @@ func (a *coordinatorAdapter) SpawnAgent(ctx context.Context, req tools.AgentSpaw
 		Background:           req.Background,
 		CacheParams:          req.CacheParams,
 		SystemPromptOverride: req.SystemPrompt,
+		SessionID:            req.SessionID,
+		TranscriptPath:       req.TranscriptPath,
 	})
 	if err != nil {
 		return "", err

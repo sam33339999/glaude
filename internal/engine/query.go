@@ -257,7 +257,8 @@ func (e *engineImpl) runQueryLoop(ctx context.Context, params QueryParams, msgCh
 			}
 			// Execute tools.
 			batches := partitionToolCalls(toolCalls, e.registry)
-			results, toolErr := runTools(ctx, batches, e.registry, params.ToolUseContext, msgCh, e.permChecker)
+			th := newToolHooks(e.toolHooks)
+			results, toolErr := runTools(ctx, batches, e.registry, params.ToolUseContext, msgCh, e.permChecker, th)
 			if toolErr != nil {
 				sendError(ctx, msgCh, toolErr)
 				return
@@ -273,6 +274,16 @@ func (e *engineImpl) runQueryLoop(ctx context.Context, params QueryParams, msgCh
 			select {
 			case msgCh <- Msg{Type: MsgTypeUserMessage, UserMsg: &resultMsg}:
 			case <-ctx.Done():
+				return
+			}
+
+			// A tool hook returned "continue": false — stop after recording
+			// this batch's results.
+			if stop, reason := th.stopped(); stop {
+				if reason == "" {
+					reason = "Stopped by a tool hook."
+				}
+				sendSystem(ctx, msgCh, reason)
 				return
 			}
 

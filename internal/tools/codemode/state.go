@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"sync"
 	"sync/atomic"
+
+	"github.com/tunsuy/glaude/internal/hooks"
 )
 
 // sideEffectCap bounds one recorded write-call input summary (CM-03 v3 audit).
@@ -33,6 +35,7 @@ type execState struct {
 	gateCh       chan struct{}
 	gateApproved bool
 	depth        atomic.Int32 // nested execution depth (replay/run recursion guard)
+	hookStop     string       // set when a tool hook returned "continue": false
 }
 
 func newExecState(batchWrites bool) *execState {
@@ -75,6 +78,55 @@ func (s *execState) snapshotSideEffects() []sideEffect {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return append([]sideEffect(nil), s.sideEffects...)
+}
+
+// hookCommon records a hook outcome: notices and additionalContext go to the
+// execution log; "continue": false stops later calls of this execution.
+func (s *execState) hookCommon(c hooks.Common) {
+	s.hookLog(c.Notices)
+	s.hookLog(c.AdditionalContext)
+	if c.PreventContinuation {
+		s.mu.Lock()
+		if s.hookStop == "" {
+			s.hookStop = c.StopReason
+			if s.hookStop == "" {
+				s.hookStop = "a hook stopped processing"
+			}
+		}
+		s.mu.Unlock()
+	}
+}
+
+// hookLog appends hook messages to the execution log.
+func (s *execState) hookLog(lines []string) {
+	if len(lines) == 0 {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, l := range lines {
+		s.extraLogs = append(s.extraLogs, "[hook] "+l)
+	}
+}
+
+// hookLines returns the hook messages logged so far.
+func (s *execState) hookLines() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []string
+	for _, l := range s.extraLogs {
+		if len(l) > 7 && l[:7] == "[hook] " {
+			out = append(out, l)
+		}
+	}
+	return out
+}
+
+// hookStopReason returns the stop reason once a hook stopped the execution.
+func (s *execState) hookStopReason() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.hookStop
 }
 
 // appendNestedLogs merges nested-execution console output (prefixed).

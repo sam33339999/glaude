@@ -212,8 +212,8 @@ func TestLoad_HooksTyped(t *testing.T) {
 	writeJSON(t,
 		filepath.Join(home, ".glaude", "settings.json"),
 		config.SettingsJson{
-			Hooks: map[types.HookType][]types.HookDefinition{
-				types.HookPreToolUse: {{Command: "echo pre", Matcher: "Bash"}},
+			Hooks: map[types.HookType][]types.HookMatcher{
+				types.HookPreToolUse: {{Matcher: "Bash", Hooks: []types.HookCommand{{Type: "command", Command: "echo pre"}}}},
 			},
 		},
 	)
@@ -226,7 +226,41 @@ func TestLoad_HooksTyped(t *testing.T) {
 	if len(ls.Merged.Hooks[types.HookPreToolUse]) != 1 {
 		t.Errorf("expected 1 PreToolUse hook, got %d", len(ls.Merged.Hooks[types.HookPreToolUse]))
 	}
-	if ls.Merged.Hooks[types.HookPreToolUse][0].Command != "echo pre" {
-		t.Errorf("unexpected hook command: %q", ls.Merged.Hooks[types.HookPreToolUse][0].Command)
+	if got := ls.Merged.Hooks[types.HookPreToolUse][0].Hooks[0].Command; got != "echo pre" {
+		t.Errorf("unexpected hook command: %q", got)
+	}
+}
+
+// TestLoad_HooksClaudeCodeFormat verifies a hooks block copied verbatim from a
+// Claude Code settings.json decodes, and that layers append.
+func TestLoad_HooksClaudeCodeFormat(t *testing.T) {
+	home := t.TempDir()
+	project := t.TempDir()
+	write := func(path, body string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(filepath.Join(home, ".glaude", "settings.json"), `{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"a.sh","timeout":5}]}]}}`)
+	write(filepath.Join(project, ".glaude", "settings.json"), `{"hooks":{"PreToolUse":[{"hooks":[{"type":"command","command":"b.sh"}]}],"PostToolUse":[{"matcher":"Write|Edit","hooks":[{"type":"command","command":"fmt.sh"}]}]}}`)
+
+	ls, err := config.NewLoader(home, project).Load()
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+	pre := ls.Merged.Hooks[types.HookPreToolUse]
+	if len(pre) != 2 {
+		t.Fatalf("PreToolUse matchers = %d, want 2 (layers append)", len(pre))
+	}
+	if pre[0].Matcher != "Bash" || pre[0].Hooks[0].Timeout != 5 || pre[0].Hooks[0].Command != "a.sh" {
+		t.Errorf("user-layer matcher decoded wrong: %+v", pre[0])
+	}
+	post := ls.Merged.Hooks[types.HookPostToolUse]
+	if len(post) != 1 || post[0].Matcher != "Write|Edit" {
+		t.Errorf("PostToolUse decoded wrong: %+v", post)
 	}
 }

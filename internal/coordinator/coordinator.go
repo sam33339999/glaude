@@ -111,6 +111,10 @@ type SpawnRequest struct {
 	CacheParams any
 	// SystemPromptOverride replaces the profile's system prompt if non-empty.
 	SystemPromptOverride string
+	// SessionID / TranscriptPath of the parent session, reported to the
+	// sub-agent's tool hooks.
+	SessionID      string
+	TranscriptPath string
 }
 
 // AgentUsage records the resource consumption of a completed sub-agent.

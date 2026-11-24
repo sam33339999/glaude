@@ -1,7 +1,7 @@
 ---
 type: auto-generated-index
-generated_at: 2026-11-23T14:09:22Z
-package_count: 46
+generated_at: 2026-11-24T06:00:34Z
+package_count: 47
 ---
 
 # Package Index
@@ -12,7 +12,7 @@ package_count: 46
 | Package | Layer | Key Exports | Context |
 |---------|-------|-------------|----------|
 | `pkg/testutil` | Types (zero-dep) | - | [CONTEXT](../../pkg/testutil/CONTEXT.md) |
-| `pkg/types` | Types (zero-dep) | AppStateReader(3m), MCPConnection(2m), AdditionalWorkingDirectory, AggregatedHookResult, CacheControl | [CONTEXT](../../pkg/types/CONTEXT.md) |
+| `pkg/types` | Types (zero-dep) | AppStateReader(3m), MCPConnection(2m), AdditionalWorkingDirectory, CacheControl, CommandBase | [CONTEXT](../../pkg/types/CONTEXT.md) |
 | `pkg/utils/env` | Types (zero-dep) | - | [CONTEXT](../../pkg/utils/env/CONTEXT.md) |
 | `pkg/utils/fs` | Types (zero-dep) | - | [CONTEXT](../../pkg/utils/fs/CONTEXT.md) |
 | `pkg/utils/ids` | Types (zero-dep) | - | [CONTEXT](../../pkg/utils/ids/CONTEXT.md) |
@@ -21,10 +21,11 @@ package_count: 46
 | `internal/agentctx` | Infra | - | [CONTEXT](../../internal/agentctx/CONTEXT.md) |
 | `internal/agenttype` | Infra | AgentProfile, Registry, ToolFilter | [CONTEXT](../../internal/agenttype/CONTEXT.md) |
 | `internal/config` | Infra | ConfigLoader(1m), ACPAgentConfig, AttributionConfig, EnvPair, InstalledPluginRecord | [CONTEXT](../../internal/config/CONTEXT.md) |
-| `internal/hooks` | Infra | Dispatcher | [CONTEXT](../../internal/hooks/CONTEXT.md) |
+| `internal/hooks` | Infra | Common, Config, Dispatcher, PostToolUseResult, PreToolUseResult | [CONTEXT](../../internal/hooks/CONTEXT.md) |
 | `internal/plugin` | Infra | Manager | [CONTEXT](../../internal/plugin/CONTEXT.md) |
 | `internal/session` | Infra | SessionStorer(3m), SessionManager, SessionStore | [CONTEXT](../../internal/session/CONTEXT.md) |
 | `internal/state` | Infra | AppState, ModelSetting, Store, TaskState, WorktreeState | [CONTEXT](../../internal/state/CONTEXT.md) |
+| `internal/textutil` | Infra | - | [CONTEXT](../../internal/textutil/CONTEXT.md) |
 | `internal/acpclient` | Services | AgentSpec, Event, Manager, ModelCatalog, ModelChoice | [CONTEXT](../../internal/acpclient/CONTEXT.md) |
 | `internal/acpclient/acptest` | Services | Agent | [CONTEXT](../../internal/acpclient/acptest/CONTEXT.md) |
 | `internal/api` | Services | Client(2m), StreamReader(1m), APIError, APIErrorData, Accumulator | [CONTEXT](../../internal/api/CONTEXT.md) |
@@ -33,7 +34,7 @@ package_count: 46
 | `internal/memdir` | Services | AutoDreamConfig, DiscoveredFile, ExtractMemoriesConfig, MemoryFile, MemoryHeader | [CONTEXT](../../internal/memdir/CONTEXT.md) |
 | `internal/msgqueue` | Services | MessageQueue, QueryGuard, QueuedCommand, Signal | [CONTEXT](../../internal/msgqueue/CONTEXT.md) |
 | `internal/oauth` | Services | TokenStore(3m), AuthCodeListener, AuthURLParams, Client, FileStore | [CONTEXT](../../internal/oauth/CONTEXT.md) |
-| `internal/permissions` | Services | Checker(3m), AskRequest, AskResponse, CheckerConfig, DangerousPathResult | [CONTEXT](../../internal/permissions/CONTEXT.md) |
+| `internal/permissions` | Services | Checker(3m), HookAwareChecker(2m), AskRequest, AskResponse, CheckerConfig | [CONTEXT](../../internal/permissions/CONTEXT.md) |
 | `internal/coordinator` | Core | Coordinator(8m), AgentUsage, Config, Event, MCPClientInfo | [CONTEXT](../../internal/coordinator/CONTEXT.md) |
 | `internal/engine` | Core | QueryEngine(7m), BudgetTracker, CacheSafeParams, Config, ForkedAgentConfig | [CONTEXT](../../internal/engine/CONTEXT.md) |
 | `internal/tools` | Tools | AgentCoordinator(9m), MCPToolInfo(1m), PathTool(1m), PermissionContext(1m), SearchOrReadTool(1m), ... | [CONTEXT](../../internal/tools/CONTEXT.md) |
@@ -52,4 +53,4 @@ package_count: 46
 | `internal/commands` | CLI | MCPServerLister(1m), ModelSwitcher(3m), ProviderBackend(7m), SetupBackend(5m), TierManager(7m), ... | [CONTEXT](../../internal/commands/CONTEXT.md) |
 
 ---
-*46 packages across 8 layers.*
+*47 packages across 8 layers.*

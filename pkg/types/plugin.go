@@ -27,7 +27,7 @@ type LoadedPlugin struct {
 	// Commands is the list of commands contributed by this plugin.
 	Commands []LocalCommand `json:"-"`
 	// Hooks is the set of hook definitions contributed by this plugin.
-	Hooks map[HookType][]HookDefinition `json:"-"`
+	Hooks map[HookType][]HookMatcher `json:"-"`
 }
 
 // MCPConnection is a forward-declaration interface for an MCP server connection.
