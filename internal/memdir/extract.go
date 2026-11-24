@@ -7,6 +7,8 @@ import (
 
 	"github.com/tunsuy/glaude/internal/engine"
 	"github.com/tunsuy/glaude/pkg/types"
+
+	"github.com/tunsuy/glaude/internal/textutil"
 )
 
 // maxSummaryChars is the maximum character count for the conversation summary
@@ -188,7 +190,7 @@ func buildConversationSummary(messages []types.Message, maxMessages int) string 
 		if sb.Len()+len(entry) > maxSummaryChars {
 			remaining := maxSummaryChars - sb.Len()
 			if remaining > 0 {
-				sb.WriteString(entry[:remaining])
+				sb.WriteString(textutil.TruncateBytes(entry, remaining))
 				sb.WriteString("...\n")
 			}
 			break

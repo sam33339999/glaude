@@ -18,6 +18,8 @@ import (
 	"github.com/tunsuy/glaude/internal/codemode"
 	"github.com/tunsuy/glaude/internal/permissions"
 	"github.com/tunsuy/glaude/internal/tools"
+
+	"github.com/tunsuy/glaude/internal/textutil"
 )
 
 // maxResultBytes caps the inline tool result (window-small, cache-first gate
@@ -281,12 +283,12 @@ func (t *codeModeTool) formatResult(execID string, r *codemode.Result) string {
 		if err := os.MkdirAll(spillDir, 0o755); err == nil {
 			path := filepath.Join(spillDir, execID+".txt")
 			if werr := os.WriteFile(path, []byte(out), 0o644); werr == nil {
-				return out[:spillPreviewBytes] + fmt.Sprintf(
+				return textutil.TruncateBytes(out, spillPreviewBytes) + fmt.Sprintf(
 					"\n…(result is %d bytes; full output saved to %s — use tools.Read or tools.Grep on that file)", len(out), path)
 			}
 		}
 	}
-	return out[:maxResultBytes] + "\n…(truncated: result exceeds 32 KiB; return less data or write it to a file via tools)"
+	return textutil.TruncateBytes(out, maxResultBytes) + "\n…(truncated: result exceeds 32 KiB; return less data or write it to a file via tools)"
 }
 
 // resolveModule serves controlled imports from dataDir/modules (CM-02 v2).
@@ -362,7 +364,7 @@ func capString(s string, n int) string {
 	if len(s) <= n {
 		return s
 	}
-	return s[:n] + "…"
+	return textutil.TruncateBytes(s, n) + "…"
 }
 
 func errorString(err error) string {

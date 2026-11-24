@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/tunsuy/glaude/internal/textutil"
 )
 
 // ellipsis is appended (or prepended) when text is cut to fit a width.
@@ -37,12 +39,9 @@ func truncateLeftWidth(s string, maxWidth int) string {
 	if maxWidth <= 0 {
 		return ""
 	}
-	w := displayWidth(s)
-	if w <= maxWidth {
-		return s
-	}
-	// Drop enough leading cells to leave room for the ellipsis.
-	return ansi.TruncateLeft(s, w-maxWidth+displayWidth(ellipsis), ellipsis)
+	// textutil also handles a wide character straddling the cut, which
+	// ansi.TruncateLeft alone keeps (overshooting maxWidth by one cell).
+	return textutil.TruncateLeftWidth(s, maxWidth)
 }
 
 // firstLine returns s up to its first newline (s itself when single-line).

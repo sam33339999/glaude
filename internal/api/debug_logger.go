@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/tunsuy/glaude/internal/textutil"
 )
 
 // DebugLogger provides structured debug logging for API request/response flows.
@@ -147,7 +149,7 @@ func (dl *DebugLogger) LogSSEEvent(eventType, data string) {
 	sb.WriteString(dl.timestamp())
 	fmt.Fprintf(&sb, " [SSE] type=%s", eventType)
 	if len(data) > 500 {
-		fmt.Fprintf(&sb, " data=%s...(truncated, total %d bytes)", data[:500], len(data))
+		fmt.Fprintf(&sb, " data=%s...(truncated, total %d bytes)", textutil.TruncateBytes(data, 500), len(data))
 	} else {
 		fmt.Fprintf(&sb, " data=%s", data)
 	}

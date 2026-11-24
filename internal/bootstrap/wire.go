@@ -33,6 +33,8 @@ import (
 	"github.com/tunsuy/glaude/internal/tools/interact"
 	"github.com/tunsuy/glaude/internal/tools/misc"
 	"github.com/tunsuy/glaude/pkg/types"
+
+	"github.com/tunsuy/glaude/internal/textutil"
 )
 
 // P1-F: Compile-time interface assertions for AppContainer field types.
@@ -865,10 +867,7 @@ func collectSubAgentRun(
 		case engine.MsgTypeStreamText:
 			lastText += msg.TextDelta
 			// Throttle: only report the tail of streamed text.
-			tail := lastText
-			if len(tail) > 80 {
-				tail = "…" + tail[len(tail)-77:]
-			}
+			tail := textutil.TruncateLeftWidth(lastText, 80)
 			emitProgress("Streaming", tail)
 
 		case engine.MsgTypeToolUseStart:
@@ -1006,11 +1005,7 @@ func loadCustomAgentProfiles(reg *agenttype.Registry, homeDir, workingDir string
 // truncateDetail truncates a string to a short summary suitable for the
 // coordinator panel detail line.
 func truncateDetail(s string) string {
-	const maxLen = 80
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen] + "…"
+	return textutil.TruncateWidth(s, 80)
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────

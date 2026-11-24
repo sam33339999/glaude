@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/tunsuy/glaude/internal/textutil"
 )
 
 // SecurityFinding describes a single dangerous pattern found in a command.
@@ -18,14 +20,7 @@ type SecurityFinding struct {
 
 // String renders the finding for permission-denial messages.
 func (f SecurityFinding) String() string {
-	return fmt.Sprintf("%s (matched in %q): %s", f.Pattern, truncate(f.Segment, 60), f.Reason)
-}
-
-func truncate(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "…"
+	return fmt.Sprintf("%s (matched in %q): %s", f.Pattern, textutil.TruncateWidth(f.Segment, 60), f.Reason)
 }
 
 // dangerousCommandPatterns matches pipeline stages that escalate privileges or
