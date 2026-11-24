@@ -89,8 +89,9 @@ func (v *scrollView) GotoTop()      { v.SetYOffset(0) }
 func (v *scrollView) GotoBottom()   { v.SetYOffset(v.maxYOffset()) }
 
 // View renders exactly height lines, each padded to width: the visible
-// content lines, then blank lines. Tabs become four spaces and lines wider
-// than the view are truncated, so every content line stays one screen row.
+// content lines, then blank lines. Tabs become tabCells spaces (the width
+// selection's column mapping assumes) and lines wider than the view are
+// truncated, so every content line stays one screen row.
 func (v scrollView) View() string {
 	if v.width <= 0 || v.height <= 0 {
 		return ""
@@ -107,7 +108,7 @@ func (v scrollView) View() string {
 			sb.WriteString(blank)
 			continue
 		}
-		line := strings.ReplaceAll(v.lines[i], "\t", "    ")
+		line := strings.ReplaceAll(v.lines[i], "\t", tabSpaces)
 		w := xansi.StringWidth(line)
 		if w > v.width {
 			line = xansi.Truncate(line, v.width, "")
@@ -120,3 +121,6 @@ func (v scrollView) View() string {
 	}
 	return sb.String()
 }
+
+// tabSpaces is what View draws for a tab.
+var tabSpaces = strings.Repeat(" ", tabCells)
