@@ -7,6 +7,8 @@ import (
 
 	"github.com/tunsuy/glaude/internal/agenttype"
 	"github.com/tunsuy/glaude/internal/tools"
+
+	"github.com/tunsuy/glaude/internal/textutil"
 )
 
 // ── Shared types ──────────────────────────────────────────────────────────────
@@ -81,10 +83,7 @@ func (t *taskCreateTool) IsReadOnly(_ tools.Input) bool        { return false }
 func (t *taskCreateTool) UserFacingName(input tools.Input) string {
 	var in TaskCreateInput
 	if json.Unmarshal(input, &in) == nil && in.Description != "" {
-		desc := in.Description
-		if len(desc) > 50 {
-			desc = desc[:50] + "…"
-		}
+		desc := textutil.TruncateWidth(in.Description, 50)
 		return fmt.Sprintf("TaskCreate(%s)", desc)
 	}
 	return "TaskCreate"

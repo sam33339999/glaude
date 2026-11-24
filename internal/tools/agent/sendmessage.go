@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/tunsuy/glaude/internal/tools"
+
+	"github.com/tunsuy/glaude/internal/textutil"
 )
 
 // ── Input / Output types ──────────────────────────────────────────────────────
@@ -79,10 +81,7 @@ func (t *sendMessageTool) UserFacingName(input tools.Input) string {
 		if target == "" {
 			target = in.AgentID
 		}
-		msg := in.Content
-		if len(msg) > 40 {
-			msg = msg[:40] + "…"
-		}
+		msg := textutil.TruncateWidth(in.Content, 40)
 		if target != "" {
 			return fmt.Sprintf("SendMessage(→%s: %s)", target, msg)
 		}

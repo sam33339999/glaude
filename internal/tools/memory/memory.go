@@ -8,6 +8,8 @@ import (
 
 	"github.com/tunsuy/glaude/internal/memdir"
 	"github.com/tunsuy/glaude/internal/tools"
+
+	"github.com/tunsuy/glaude/internal/textutil"
 )
 
 // ── MemoryReadTool ───────────────────────────────────────────────────────────
@@ -137,10 +139,7 @@ func firstLine(s string) string {
 	for _, line := range strings.Split(s, "\n") {
 		line = strings.TrimSpace(line)
 		if line != "" {
-			if len(line) > 120 {
-				return line[:117] + "..."
-			}
-			return line
+			return textutil.TruncateWidthTail(line, 120, "...")
 		}
 	}
 	return ""

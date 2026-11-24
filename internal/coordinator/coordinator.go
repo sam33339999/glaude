@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/tunsuy/glaude/pkg/utils/ids"
+
+	"github.com/tunsuy/glaude/internal/textutil"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -717,5 +719,5 @@ func DefaultSummaryGenerator(_ AgentID, result string) string {
 	if len(result) <= 200 {
 		return result
 	}
-	return result[:200] + "…"
+	return textutil.TruncateBytes(result, 200) + "…"
 }

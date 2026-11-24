@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/tunsuy/glaude/internal/textutil"
 )
 
 // openaiClient implements Client using the OpenAI Chat Completions API format.
@@ -300,7 +302,7 @@ func (c *openaiClient) convertMessage(msg MessageParam) []openaiMessage {
 			if c.debugLogger.Enabled() {
 				preview := contentStr
 				if len(preview) > 200 {
-					preview = preview[:200]
+					preview = textutil.TruncateBytes(preview, 200)
 				}
 				c.debugLogger.Logf("tool_result: ToolUseID=%q, ContentLen=%d, Preview=%q", toolCallID, len(contentStr), preview)
 			}

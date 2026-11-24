@@ -56,6 +56,7 @@ var layerMap = map[string]string{
 	"internal/agentctx":  "infra",
 	"internal/agenttype": "infra",
 	"internal/plugin":    "infra",
+	"internal/textutil":  "infra",
 
 	// Types layer (zero-dependency)
 	"pkg/types":    "types",

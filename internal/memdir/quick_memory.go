@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"strings"
 	"time"
+
+	"github.com/tunsuy/glaude/internal/textutil"
 )
 
 // SaveQuickMemory stores a user preference from the # shortcut input.
@@ -35,10 +37,7 @@ func SaveQuickMemory(store *MemoryStore, text string) (string, error) {
 
 func truncateQuickTitle(text string) string {
 	text = strings.TrimSpace(text)
-	if len(text) <= 60 {
-		return text
-	}
-	return text[:57] + "..."
+	return textutil.TruncateWidthTail(text, 60, "...")
 }
 
 func quickMemoryAck() string {

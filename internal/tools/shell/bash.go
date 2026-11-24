@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/tunsuy/glaude/internal/tools"
+
+	"github.com/tunsuy/glaude/internal/textutil"
 )
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -118,10 +120,7 @@ func (t *bashTool) InterruptBehavior() tools.InterruptBehavior {
 func (t *bashTool) UserFacingName(input tools.Input) string {
 	var in BashInput
 	if json.Unmarshal(input, &in) == nil && in.Command != "" {
-		cmd := in.Command
-		if len(cmd) > 60 {
-			cmd = cmd[:60] + "…"
-		}
+		cmd := textutil.TruncateWidth(in.Command, 60)
 		return fmt.Sprintf("Bash(%s)", cmd)
 	}
 	return "Bash"

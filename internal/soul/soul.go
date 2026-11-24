@@ -20,6 +20,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/tunsuy/glaude/internal/textutil"
 )
 
 // FileName is the soul file name inside a .glaude directory.
@@ -55,7 +57,7 @@ func Sources(home, projectDir string) []Source {
 		}
 		if t := strings.TrimSpace(string(b)); t != "" {
 			if len(t) > MaxBytes {
-				t = t[:MaxBytes]
+				t = textutil.TruncateBytes(t, MaxBytes)
 			}
 			out = append(out, Source{Scope: scope, Path: path, Text: t})
 		}

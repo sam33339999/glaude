@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/tunsuy/glaude/internal/tools"
+
+	"github.com/tunsuy/glaude/internal/textutil"
 )
 
 // ── Input / Output types ──────────────────────────────────────────────────────
@@ -121,10 +123,7 @@ func (t *agentTool) IsReadOnly(_ tools.Input) bool        { return false }
 func (t *agentTool) UserFacingName(input tools.Input) string {
 	var in AgentInput
 	if json.Unmarshal(input, &in) == nil && in.Prompt != "" {
-		prompt := in.Prompt
-		if len(prompt) > 60 {
-			prompt = prompt[:60] + "…"
-		}
+		prompt := textutil.TruncateWidth(in.Prompt, 60)
 		prefix := "Agent"
 		if in.AgentType != "" {
 			prefix = fmt.Sprintf("Agent[%s]", in.AgentType)
@@ -190,7 +189,7 @@ func (t *agentTool) Call(input tools.Input, ctx *tools.UseContext, onProgress to
 	// parent's cache-safe prefix snapshot so forks hit the parent's prompt
 	// cache; the wire layer consumes it for agent_type "fork".
 	agentID, err := ctx.Coordinator.SpawnAgent(ctx.Ctx, tools.AgentSpawnRequest{
-		Description:  truncateStr(in.Prompt, 100),
+		Description:  textutil.TruncateWidth(in.Prompt, 100),
 		Prompt:       in.Prompt,
 		SystemPrompt: in.SystemPrompt,
 		AllowedTools: in.AllowedTools,
@@ -248,14 +247,6 @@ func (t *agentTool) Call(input tools.Input, ctx *tools.UseContext, onProgress to
 	return &tools.Result{
 		Content: string(outBytes),
 	}, nil
-}
-
-// truncateStr truncates s to maxLen runes, appending "…" if truncated.
-func truncateStr(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen] + "…"
 }
 
 // nameOrID returns name if non-empty, otherwise id.

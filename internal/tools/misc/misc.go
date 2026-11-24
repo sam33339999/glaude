@@ -12,6 +12,8 @@ import (
 	"unicode"
 
 	"github.com/tunsuy/glaude/internal/tools"
+
+	"github.com/tunsuy/glaude/internal/textutil"
 )
 
 // ── SkillTool ─────────────────────────────────────────────────────────────────
@@ -105,7 +107,7 @@ func (t *skillTool) Call(input tools.Input, _ *tools.UseContext, _ tools.OnProgr
 		return &tools.Result{IsError: true, Content: msg}, nil
 	}
 	if len(content) > skillMaxContentChars {
-		content = content[:skillMaxContentChars] + "\n…(truncated)"
+		content = textutil.TruncateBytes(content, skillMaxContentChars) + "\n…(truncated)"
 	}
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "Skill %q loaded. Follow these instructions:\n\n%s", name, content)
@@ -228,7 +230,7 @@ func (t *briefTool) Call(input tools.Input, _ *tools.UseContext, _ tools.OnProgr
 		return &tools.Result{IsError: true, Content: "Brief: content is required"}, nil
 	}
 	if len(content) > briefMaxInputChars {
-		content = content[:briefMaxInputChars]
+		content = textutil.TruncateBytes(content, briefMaxInputChars)
 	}
 	brief := extractiveBrief(content)
 	return &tools.Result{Content: brief}, nil
