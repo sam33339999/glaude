@@ -2,13 +2,13 @@
 package: session
 import_path: internal/session
 layer: infra
-generated_at: 2026-11-23T14:09:22Z
+generated_at: 2026-11-24T06:00:34Z
 source_files: [store.go]
 ---
 
 # internal/session
 
-> Layer: **Infra** · Files: 1 · Interfaces: 1 · Structs: 2 · Functions: 3
+> Layer: **Infra** · Files: 1 · Interfaces: 1 · Structs: 2 · Functions: 4
 
 ## Interfaces
 
@@ -33,6 +33,7 @@ type SessionStorer interface {
 - `New(projectDir string) (types.SessionId, *SessionManager, error)`
 - `OpenSessionStore(path string) (*SessionStore, error)`
 - `Resume(sessionIDStr string, projectDir string) (types.SessionId, *SessionManager, error)`
+- `TranscriptPath(projectDir string, sid types.SessionId) (string, error)`
 
 ## Change Impact
 

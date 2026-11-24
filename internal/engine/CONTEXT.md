@@ -2,13 +2,13 @@
 package: engine
 import_path: internal/engine
 layer: core
-generated_at: 2026-11-23T14:09:22Z
-source_files: [budget.go, cache_params.go, compaction.go, engine.go, forked_agent.go, msg.go, orchestration.go, query.go, stop_hooks.go, tool_images.go]
+generated_at: 2026-11-24T06:00:34Z
+source_files: [budget.go, cache_params.go, compaction.go, engine.go, forked_agent.go, msg.go, orchestration.go, query.go, stop_hooks.go, thinking.go, tool_hooks.go, tool_images.go]
 ---
 
 # internal/engine
 
-> Layer: **Core** · Files: 10 · Interfaces: 1 · Structs: 15 · Functions: 9
+> Layer: **Core** · Files: 12 · Interfaces: 1 · Structs: 15 · Functions: 9
 
 ## Interfaces
 
@@ -30,13 +30,13 @@ type QueryEngine interface {
 ## Structs
 
 - **BudgetTracker** — 4 fields: ContinuationCount, LastDeltaTokens, LastGlobalTurnTokens, StartedAt
-- **CacheSafeParams** — 7 fields: SystemPrompt, ContextMessages, ToolUseContext, Model, Client, ContextWindow, MaxTokens
-- **Config** — 9 fields: Client, Registry, Model, MaxTokens, PermissionChecker, StopHooks, MsgQueue, MainContextWindow, ...
+- **CacheSafeParams** — 8 fields: SystemPrompt, ContextMessages, ToolUseContext, Model, Client, ContextWindow, MaxTokens, ThinkingOrigin
+- **Config** — 10 fields: Client, Registry, Model, MaxTokens, PermissionChecker, StopHooks, ToolHooks, MsgQueue, ...
 - **ForkedAgentConfig** — 6 fields: PromptMessages, CacheSafeParams, QuerySource, MaxTurns, AllowedTools, OnMessage
-- **MainTarget** — 6 fields: Client, ProviderID, Model, ContextWindow, MaxTokens, StripThinking
+- **MainTarget** — 6 fields: Client, ProviderID, Model, ContextWindow, MaxTokens, Endpoint
 - **Msg** — 21 fields: Type, TextDelta, ToolUseID, ToolName, InputDelta, ToolInput, ToolResult, AssistantMsg, ...
 - **PermissionRequestMsg** — 6 fields: RequestID, ToolUseID, ToolName, Message, Input, RespFn
-- **QueryParams** — 21 fields: Messages, SystemPrompt, UserContext, SystemContext, ToolUseContext, QuerySource, MaxOutputTokensOverride, MaxTurns, ...
+- **QueryParams** — 22 fields: Messages, SystemPrompt, UserContext, SystemContext, ToolUseContext, QuerySource, MaxOutputTokensOverride, MaxTurns, ...
 - **StopHookContext** — 6 fields: Messages, ToolUseContext, QuerySource, IsBareMode, Engine, CacheParams
 - **StopHookRegistry** — 2 fields
 - **SystemPrompt** — 1 fields: Parts
@@ -109,7 +109,7 @@ type QueryEngine interface {
 
 ## Dependencies
 
-**Imports:** `internal/api`, `internal/compact`, `internal/msgqueue`, `internal/permissions`, `internal/tools`, `pkg/types`
+**Imports:** `internal/api`, `internal/compact`, `internal/hooks`, `internal/msgqueue`, `internal/permissions`, `internal/tools`, `pkg/types`
 
 **Imported by:** `internal/bootstrap`, `internal/memdir`, `internal/tui`
 

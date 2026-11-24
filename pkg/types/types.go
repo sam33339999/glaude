@@ -9,6 +9,6 @@
 //	message.go    — Message, Role, ContentBlock, ToolCall, ToolResult
 //	logs.go       — EntryEnvelope, SerializedMessage, TranscriptMessage, LogOption
 //	command.go    — CommandBase, PromptCommand, LocalCommand, AppStateReader
-//	hooks.go      — HookType, HookDefinition, HookResult, HookCallback
+//	hooks.go      — HookType, HookMatcher, HookCommand
 //	plugin.go     — LoadedPlugin, PluginConfig, PluginError, MCPConnection
 package types

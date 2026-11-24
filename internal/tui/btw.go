@@ -166,7 +166,7 @@ func (m AppModel) startBTW(args string) (AppModel, tea.Cmd) {
 		NoWriteBack: true, MaxTurns: btwMaxTurns,
 		Client: target.Client, ThinkingOrigin: origin, Model: target.Model, ContextWindow: target.ContextWindow, MaxOutputTokensOverride: target.MaxTokens,
 		CompactTracker: compact.NewTracker(), NoCompaction: true, NonInteractivePermissions: true, ToolFilter: btwToolFilter,
-		ToolUseContext: &tools.UseContext{Ctx: ctx, TodoAppendOnly: true, WorkingDir: m.appState.GetState().WorkingDir},
+		ToolUseContext: &tools.UseContext{Ctx: ctx, TodoAppendOnly: true, WorkingDir: m.appState.GetState().WorkingDir, SessionID: m.transcript.SessionID(), TranscriptPath: m.transcript.Path()},
 	}
 	ch, err := m.queryEngine.Query(ctx, params)
 	if err != nil {

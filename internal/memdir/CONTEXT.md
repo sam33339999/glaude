@@ -2,7 +2,7 @@
 package: memdir
 import_path: internal/memdir
 layer: services
-generated_at: 2026-11-23T14:09:22Z
+generated_at: 2026-11-24T06:00:34Z
 source_files: [discover.go, dream.go, extract.go, extract_prompt.go, freshness.go, gate.go, include.go, loader.go, quick_memory.go, relevance.go, scope.go, secret_scanner.go, session_memory.go, status.go, store.go, types.go]
 ---
 
@@ -88,7 +88,7 @@ source_files: [discover.go, dream.go, extract.go, extract_prompt.go, freshness.g
 
 ## Dependencies
 
-**Imports:** `internal/engine`, `pkg/types`
+**Imports:** `internal/engine`, `internal/textutil`, `pkg/types`
 
 **Imported by:** `internal/bootstrap`, `internal/commands`, `internal/tools/memory`, `internal/tui`
 

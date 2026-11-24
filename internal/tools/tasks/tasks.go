@@ -109,6 +109,9 @@ func (t *taskCreateTool) Call(input tools.Input, ctx *tools.UseContext, _ tools.
 		AllowedTools: in.Tools,
 		AgentType:    string(agenttype.AgentTypeWorker),
 		Background:   true,
+		// Sub-agent tool hooks report the parent session.
+		SessionID:      ctx.SessionID,
+		TranscriptPath: ctx.TranscriptPath,
 	})
 	if err != nil {
 		return &tools.Result{IsError: true, Content: fmt.Sprintf("failed to create task: %v", err)}, nil

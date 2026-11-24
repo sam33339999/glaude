@@ -12,7 +12,6 @@ import (
 	"github.com/tunsuy/glaude/internal/acpclient/acptest"
 	"github.com/tunsuy/glaude/internal/config"
 	"github.com/tunsuy/glaude/internal/coordinator"
-	"github.com/tunsuy/glaude/internal/hooks"
 	"github.com/tunsuy/glaude/internal/mcp"
 	"github.com/tunsuy/glaude/internal/permissions"
 	"github.com/tunsuy/glaude/internal/state"
@@ -139,10 +138,9 @@ func permTestChecker(t *testing.T, allow ...string) (permissions.Checker, chan p
 			AlwaysAllowRules: types.ToolPermissionRulesBySource{types.RuleSourceSession: allow},
 			AlwaysDenyRules:  types.ToolPermissionRulesBySource{types.RuleSourceSession: {"WebFetch"}},
 		},
-		Dispatcher: hooks.NewDispatcher(nil, false),
-		Registry:   reg,
-		AskCh:      askCh,
-		RespCh:     respCh,
+		Registry: reg,
+		AskCh:    askCh,
+		RespCh:   respCh,
 	})
 	return c, askCh, respCh
 }

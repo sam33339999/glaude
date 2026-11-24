@@ -6,6 +6,7 @@ import (
 
 	"github.com/tunsuy/glaude/internal/api"
 	"github.com/tunsuy/glaude/internal/compact"
+	"github.com/tunsuy/glaude/internal/hooks"
 	"github.com/tunsuy/glaude/internal/msgqueue"
 	"github.com/tunsuy/glaude/internal/permissions"
 	"github.com/tunsuy/glaude/internal/tools"
@@ -170,6 +171,9 @@ type engineImpl struct {
 	// If nil, no stop hooks are executed.
 	stopHooks *StopHookRegistry
 
+	// toolHooks runs the settings.json tool hooks (nil = none).
+	toolHooks *hooks.Dispatcher
+
 	// msgQueue is the optional unified command queue for mid-session message
 	// processing (mid-turn drain). If nil, mid-turn drain is disabled.
 	msgQueue *msgqueue.MessageQueue
@@ -215,6 +219,9 @@ type Config struct {
 	// StopHooks is the optional registry of stop hooks fired after each turn.
 	// If nil, no stop hooks are executed.
 	StopHooks *StopHookRegistry
+	// ToolHooks runs the settings.json PreToolUse/PostToolUse hooks around
+	// every tool call. If nil, no tool hooks run.
+	ToolHooks *hooks.Dispatcher
 	// MsgQueue is the optional unified command queue for mid-session message
 	// processing. If nil, mid-turn drain is disabled (backward compatible).
 	MsgQueue *msgqueue.MessageQueue
@@ -249,6 +256,7 @@ func New(cfg Config) QueryEngine {
 		mainTracker:    compact.NewTracker(),
 		permChecker:    cfg.PermissionChecker,
 		stopHooks:      cfg.StopHooks,
+		toolHooks:      cfg.ToolHooks,
 		msgQueue:       cfg.MsgQueue,
 
 		debugLogf: cfg.DebugLogf,
@@ -316,4 +324,3 @@ func (e *engineImpl) SetMainTarget(t MainTarget) {
 func (e *engineImpl) currentModel() string {
 	return e.MainTarget().Model
 }
-

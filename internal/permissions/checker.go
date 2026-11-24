@@ -1,7 +1,9 @@
 // Package permissions implements the tool-use permission decision pipeline.
 // The pipeline evaluates a layered chain of rules (bypass → deny → validate →
-// hook → allow → ask → tool-specific → mode default) and produces a three-level
-// decision: Allow, Deny, or Ask.
+// allow → ask → tool-specific → mode default) and produces a three-level
+// decision: Allow, Deny, or Ask. PreToolUse hooks run before this pipeline,
+// in the engine (see internal/hooks); their decisions reach the checker as
+// PermissionRequest.ForceAsk and DenyRuleMatch.
 package permissions
 
 import (
@@ -11,7 +13,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/tunsuy/glaude/internal/hooks"
 	"github.com/tunsuy/glaude/internal/tools"
 	"github.com/tunsuy/glaude/pkg/types"
 )
@@ -48,6 +49,24 @@ type PermissionRequest struct {
 	// Note, when set, is appended to the user-facing permission message
 	// (e.g. the CodeMode batch-writes gate scope explanation).
 	Note string
+	// ForceAsk is set when a PreToolUse hook answered "ask": the user is
+	// asked even if a rule or the permission mode would allow the call.
+	// A Deny from the pipeline still wins.
+	ForceAsk bool
+	// HookReason is the hook's explanation, shown in the permission dialog.
+	HookReason string
+}
+
+// HookAwareChecker is implemented by checkers that support the decisions of
+// settings.json PreToolUse hooks.
+type HookAwareChecker interface {
+	// CanUseToolHookAllowed is CanUseTool for a call a PreToolUse hook
+	// answered "allow": deny rules, ask rules, plan mode and the tool's own
+	// safety checks still apply; only the mode's default prompt is skipped.
+	CanUseToolHookAllowed(ctx context.Context, toolName string, input tools.Input, tctx *tools.UseContext) (tools.PermissionResult, error)
+	// MatchRule reports whether one permission-rule pattern (e.g.
+	// "Bash(git *)") covers the call; used for a hook's "if" filter.
+	MatchRule(rule, toolName string, input tools.Input) bool
 }
 
 // checker is the concrete Checker implementation.
@@ -59,9 +78,8 @@ type checker struct {
 	modeFn func() types.PermissionMode
 	// mu guards permCtx and persist: persistAllowRule mutates the allow rules
 	// while CanUseTool reads them from the engine goroutine.
-	mu         sync.RWMutex
-	persist    PersistConfig
-	dispatcher *hooks.Dispatcher
+	mu      sync.RWMutex
+	persist PersistConfig
 	// t is the resolved tool (may be nil if registry is nil).
 	registry interface {
 		Get(name string) (tools.Tool, bool)
@@ -82,8 +100,6 @@ type checker struct {
 type CheckerConfig struct {
 	// PermCtx is the current permission context snapshot.
 	PermCtx types.ToolPermissionContext
-	// Dispatcher runs PreToolUse hooks (may be nil to skip hooks).
-	Dispatcher *hooks.Dispatcher
 	// Registry resolves tool names to Tool implementations (may be nil).
 	Registry interface {
 		Get(name string) (tools.Tool, bool)
@@ -108,14 +124,13 @@ type CheckerConfig struct {
 // NewChecker constructs a new Checker.
 func NewChecker(cfg CheckerConfig) Checker {
 	c := &checker{
-		permCtx:    cfg.PermCtx,
-		modeFn:     cfg.ModeFn,
-		dispatcher: cfg.Dispatcher,
-		registry:   cfg.Registry,
-		askCh:      cfg.AskCh,
-		respCh:     cfg.RespCh,
-		askSem:     make(chan struct{}, 1),
-		denial:     &DenialTrackingState{},
+		permCtx:  cfg.PermCtx,
+		modeFn:   cfg.ModeFn,
+		registry: cfg.Registry,
+		askCh:    cfg.AskCh,
+		respCh:   cfg.RespCh,
+		askSem:   make(chan struct{}, 1),
+		denial:   &DenialTrackingState{},
 	}
 	if cfg.Persist != nil {
 		c.persist = *cfg.Persist
@@ -130,6 +145,37 @@ func (c *checker) CanUseTool(
 	input tools.Input,
 	tctx *tools.UseContext,
 ) (tools.PermissionResult, error) {
+	return c.canUseTool(ctx, toolName, input, tctx, false)
+}
+
+// CanUseToolHookAllowed implements HookAwareChecker.
+func (c *checker) CanUseToolHookAllowed(
+	ctx context.Context,
+	toolName string,
+	input tools.Input,
+	tctx *tools.UseContext,
+) (tools.PermissionResult, error) {
+	return c.canUseTool(ctx, toolName, input, tctx, true)
+}
+
+// MatchRule implements HookAwareChecker.
+func (c *checker) MatchRule(rule, toolName string, input tools.Input) bool {
+	return matchPattern(rule, toolName, c.resolveMatcherFn(toolName, input))
+}
+
+// canUseTool is the decision chain. hookAllowed marks a call a PreToolUse
+// hook allowed: the default prompts (steps 7 acceptEdits and 9) become allow.
+func (c *checker) canUseTool(
+	_ context.Context,
+	toolName string,
+	input tools.Input,
+	tctx *tools.UseContext,
+	hookAllowed bool,
+) (tools.PermissionResult, error) {
+	defaultAsk := tools.PermissionResult{Behavior: tools.PermissionAsk}
+	if hookAllowed {
+		defaultAsk = tools.PermissionResult{Behavior: tools.PermissionAllow, Reason: "allowed by a PreToolUse hook"}
+	}
 	// Snapshot read: persistAllowRule may concurrently append allow rules from
 	// a user response while the engine goroutine runs this check.
 	c.mu.RLock()
@@ -161,20 +207,7 @@ func (c *checker) CanUseTool(
 		}
 	}
 
-	// 4. Hook PreToolUse.
-	if c.dispatcher != nil {
-		hookResult, herr := c.dispatcher.Run(ctx, types.HookPreToolUse, map[string]any{
-			"tool_name": toolName,
-			"input":     string(input),
-		})
-		if herr == nil && hookResult != nil && hookResult.Blocked {
-			reason := "blocked by PreToolUse hook"
-			if len(hookResult.BlockReasons) > 0 {
-				reason = strings.Join(hookResult.BlockReasons, "; ")
-			}
-			return tools.PermissionResult{Behavior: tools.PermissionDeny, Reason: reason}, nil
-		}
-	}
+	// 4. (PreToolUse hooks run in the engine before this pipeline.)
 
 	// 5. alwaysAllowRules → allow.
 	if matched, _ := matchRules(c.permCtx.AlwaysAllowRules, toolName, input, c.resolveMatcherFn(toolName, input)); matched {
@@ -213,7 +246,7 @@ func (c *checker) CanUseTool(
 			}
 		}
 		// Default to ask for non-read tools.
-		return tools.PermissionResult{Behavior: tools.PermissionAsk}, nil
+		return defaultAsk, nil
 	}
 
 	// 8. Tool-specific CheckPermissions.
@@ -238,7 +271,7 @@ func (c *checker) CanUseTool(
 		}
 	}
 	// Unknown or write tool in default mode → ask.
-	return tools.PermissionResult{Behavior: tools.PermissionAsk}, nil
+	return defaultAsk, nil
 }
 
 // RequestPermission implements the full interactive permission flow.
@@ -250,6 +283,23 @@ func (c *checker) RequestPermission(
 	result, err := c.CanUseTool(ctx, req.ToolName, req.Input, tctx)
 	if err != nil {
 		return result, err
+	}
+
+	// A PreToolUse hook asked for confirmation: ask unless the pipeline denies.
+	if req.ForceAsk && result.Behavior != tools.PermissionDeny {
+		if c.askCh == nil || c.respCh == nil {
+			c.denial.Record(DenialRecord{
+				ToolName:  req.ToolName,
+				ToolUseID: req.ToolUseID,
+				Reason:    "PreToolUse hook asked for confirmation; no interactive channel",
+			})
+			return tools.PermissionResult{Behavior: tools.PermissionDeny, Reason: "a PreToolUse hook asked for confirmation, but no user is available"}, nil
+		}
+		msg := req.HookReason
+		if msg == "" {
+			msg = "A PreToolUse hook asked for confirmation."
+		}
+		return c.askUser(ctx, req, msg, false)
 	}
 
 	switch result.Behavior {
@@ -290,8 +340,7 @@ func (c *checker) RequestPermission(
 }
 
 // allowedByRule reports whether an always-allow rule now covers the call.
-// It repeats only the rule match from CanUseTool, not the PreToolUse hook,
-// so a hook never runs twice for one call.
+// It repeats only the rule match from CanUseTool.
 func (c *checker) allowedByRule(toolName string, input tools.Input) bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()

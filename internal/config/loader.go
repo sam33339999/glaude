@@ -37,34 +37,34 @@ type AttributionConfig struct {
 // SettingsJson corresponds to the complete settings.json file structure.
 // All fields use omitempty to ensure unset fields are not written back (backwards-compatible).
 type SettingsJson struct {
-	Schema                string                                    `json:"$schema,omitempty"`
-	APIKey                string                                    `json:"apiKey,omitempty"`
-	APIKeyHelper          string                                    `json:"apiKeyHelper,omitempty"`
-	BaseURL               string                                    `json:"baseUrl,omitempty"`
-	Provider              string                                    `json:"provider,omitempty"` // API provider: direct, bedrock, vertex, foundry, openai
-	AWSCredentialExport   string                                    `json:"awsCredentialExport,omitempty"`
-	AWSAuthRefresh        string                                    `json:"awsAuthRefresh,omitempty"`
-	GCPAuthRefresh        string                                    `json:"gcpAuthRefresh,omitempty"`
-	OpenAIOrganization    string                                    `json:"openaiOrganization,omitempty"` // OpenAI organization ID
-	OpenAIProject         string                                    `json:"openaiProject,omitempty"`      // OpenAI project ID
-	RespectGitignore      *bool                                     `json:"respectGitignore,omitempty"`
-	CleanupPeriodDays     *int                                      `json:"cleanupPeriodDays,omitempty"`
-	Env                   map[string]string                         `json:"env,omitempty"`
-	Attribution           *AttributionConfig                        `json:"attribution,omitempty"`
-	Permissions           *PermissionsConfig                        `json:"permissions,omitempty"`
-	Model                 string                                    `json:"model,omitempty"`
-	AvailableModels       []string                                  `json:"availableModels,omitempty"`
-	ModelOverrides        map[string]string                         `json:"modelOverrides,omitempty"`
-	EnableAllProjectMCP   *bool                                     `json:"enableAllProjectMcpServers,omitempty"`
-	EnabledMCPServers     []string                                  `json:"enabledMcpjsonServers,omitempty"`
-	DisabledMCPServers    []string                                  `json:"disabledMcpjsonServers,omitempty"`
-	Hooks                 map[types.HookType][]types.HookDefinition `json:"hooks,omitempty"`
-	Worktree              *WorktreeConfig                           `json:"worktree,omitempty"`
-	DisableAllHooks       *bool                                     `json:"disableAllHooks,omitempty"`
-	DefaultShell          string                                    `json:"defaultShell,omitempty"`
-	AllowManagedHooksOnly *bool                                     `json:"allowManagedHooksOnly,omitempty"`
-	AutoMemoryEnabled     *bool                                     `json:"autoMemoryEnabled,omitempty"`
-	AutoMemoryDirectory   string                                    `json:"autoMemoryDirectory,omitempty"`
+	Schema                string                                 `json:"$schema,omitempty"`
+	APIKey                string                                 `json:"apiKey,omitempty"`
+	APIKeyHelper          string                                 `json:"apiKeyHelper,omitempty"`
+	BaseURL               string                                 `json:"baseUrl,omitempty"`
+	Provider              string                                 `json:"provider,omitempty"` // API provider: direct, bedrock, vertex, foundry, openai
+	AWSCredentialExport   string                                 `json:"awsCredentialExport,omitempty"`
+	AWSAuthRefresh        string                                 `json:"awsAuthRefresh,omitempty"`
+	GCPAuthRefresh        string                                 `json:"gcpAuthRefresh,omitempty"`
+	OpenAIOrganization    string                                 `json:"openaiOrganization,omitempty"` // OpenAI organization ID
+	OpenAIProject         string                                 `json:"openaiProject,omitempty"`      // OpenAI project ID
+	RespectGitignore      *bool                                  `json:"respectGitignore,omitempty"`
+	CleanupPeriodDays     *int                                   `json:"cleanupPeriodDays,omitempty"`
+	Env                   map[string]string                      `json:"env,omitempty"`
+	Attribution           *AttributionConfig                     `json:"attribution,omitempty"`
+	Permissions           *PermissionsConfig                     `json:"permissions,omitempty"`
+	Model                 string                                 `json:"model,omitempty"`
+	AvailableModels       []string                               `json:"availableModels,omitempty"`
+	ModelOverrides        map[string]string                      `json:"modelOverrides,omitempty"`
+	EnableAllProjectMCP   *bool                                  `json:"enableAllProjectMcpServers,omitempty"`
+	EnabledMCPServers     []string                               `json:"enabledMcpjsonServers,omitempty"`
+	DisabledMCPServers    []string                               `json:"disabledMcpjsonServers,omitempty"`
+	Hooks                 map[types.HookType][]types.HookMatcher `json:"hooks,omitempty"`
+	Worktree              *WorktreeConfig                        `json:"worktree,omitempty"`
+	DisableAllHooks       *bool                                  `json:"disableAllHooks,omitempty"`
+	DefaultShell          string                                 `json:"defaultShell,omitempty"`
+	AllowManagedHooksOnly *bool                                  `json:"allowManagedHooksOnly,omitempty"`
+	AutoMemoryEnabled     *bool                                  `json:"autoMemoryEnabled,omitempty"`
+	AutoMemoryDirectory   string                                 `json:"autoMemoryDirectory,omitempty"`
 	// ACPAgents configures external coding agents reached over the Agent
 	// Client Protocol (keyed by agent name, e.g. "grok"). Entries override the
 	// built-in presets field by field; a new name adds a custom agent.
@@ -332,7 +332,7 @@ func applyLayer(dst, src *SettingsJson) {
 	// hooks: merge per HookType.
 	if len(src.Hooks) > 0 {
 		if dst.Hooks == nil {
-			dst.Hooks = make(map[types.HookType][]types.HookDefinition, len(src.Hooks))
+			dst.Hooks = make(map[types.HookType][]types.HookMatcher, len(src.Hooks))
 		}
 		for ht, defs := range src.Hooks {
 			dst.Hooks[ht] = append(dst.Hooks[ht], defs...)
@@ -442,7 +442,9 @@ func applyPolicyOverrides(base *SettingsJson, policy *SettingsJson) *SettingsJso
 		}
 	}
 	// Policy hooks override (replace, not append) for managed-only enforcement.
-	if len(policy.Hooks) > 0 {
+	// With allowManagedHooksOnly, only the policy layer's hooks run — even
+	// when the policy defines none.
+	if len(policy.Hooks) > 0 || (base.AllowManagedHooksOnly != nil && *base.AllowManagedHooksOnly) {
 		base.Hooks = policy.Hooks
 	}
 	return base

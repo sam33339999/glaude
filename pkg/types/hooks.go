@@ -7,55 +7,56 @@ package types
 type HookType string
 
 const (
-	HookPreToolUse   HookType = "PreToolUse"
-	HookPostToolUse  HookType = "PostToolUse"
-	HookStop         HookType = "Stop"
-	HookSessionStart HookType = "SessionStart"
-	HookSessionEnd   HookType = "SessionEnd"
-	HookPreSampling  HookType = "PreSampling"
-	HookPostSampling HookType = "PostSampling"
-	HookNotification HookType = "Notification"
-	HookSubagentStop HookType = "SubagentStop"
+	HookPreToolUse         HookType = "PreToolUse"
+	HookPostToolUse        HookType = "PostToolUse"
+	HookPostToolUseFailure HookType = "PostToolUseFailure"
+	HookStop               HookType = "Stop"
+	HookSessionStart       HookType = "SessionStart"
+	HookSessionEnd         HookType = "SessionEnd"
+	HookPreSampling        HookType = "PreSampling"
+	HookPostSampling       HookType = "PostSampling"
+	HookNotification       HookType = "Notification"
+	HookSubagentStop       HookType = "SubagentStop"
 )
 
-// HookDecision is the decision returned by a hook execution.
-type HookDecision string
-
-const (
-	HookDecisionBlock   HookDecision = "block"
-	HookDecisionApprove HookDecision = "approve"
-	HookDecisionModify  HookDecision = "modify"
-)
-
-// HookDefinition is a single hook configuration entry from settings.json.
-type HookDefinition struct {
-	// Command is the shell command to execute.
-	Command string `json:"command"`
-	// Matcher is an optional glob/regex to match the tool name (for PreToolUse / PostToolUse).
+// HookMatcher is one entry of a settings.json hook event list. It uses the
+// same shape as Claude Code:
+//
+//	{"matcher": "Bash|Write", "hooks": [{"type": "command", "command": "..."}]}
+type HookMatcher struct {
+	// Matcher selects tool names: "" or "*" matches every tool; a value made
+	// only of letters, digits, "_", "-", spaces, "," and "|" is a list of
+	// exact names separated by "|" or ","; anything else is an (unanchored)
+	// regular expression.
 	Matcher string `json:"matcher,omitempty"`
-	// TimeoutMs is the execution timeout in milliseconds (0 means use default).
-	TimeoutMs int `json:"timeout_ms,omitempty"`
+	// Hooks are the commands run when the matcher matches.
+	Hooks []HookCommand `json:"hooks"`
 }
 
-// HookResult is the structured output returned by a hook command.
-type HookResult struct {
-	Decision HookDecision `json:"decision"`
-	Reason   string       `json:"reason,omitempty"`
-	// ModifiedContent is set when Decision == HookDecisionModify.
-	ModifiedContent string `json:"modifiedContent,omitempty"`
+// HookCommand is a single hook to execute (Claude Code "command hook" fields).
+type HookCommand struct {
+	// Type is the hook kind; only "command" is supported ("" is treated as "command").
+	Type string `json:"type"`
+	// Command is the shell command; with Args, the executable to spawn directly.
+	Command string `json:"command"`
+	// Args, when present, runs Command directly with this argument vector (no shell).
+	Args []string `json:"args,omitempty"`
+	// Shell selects the shell for Command: "bash" (default) or "powershell".
+	Shell string `json:"shell,omitempty"`
+	// If is a permission-rule pattern (e.g. "Bash(git *)"); the hook runs
+	// only for tool calls matching it.
+	If string `json:"if,omitempty"`
+	// OnFailure is "continue" (default) or "block": whether the triggering
+	// action goes ahead when the hook itself fails (crash, timeout, bad exit).
+	OnFailure string `json:"onFailure,omitempty"`
+	// Async runs the hook in the background without waiting for it.
+	Async bool `json:"async,omitempty"`
+	// AsyncRewake is accepted for compatibility; it runs like Async.
+	AsyncRewake bool `json:"asyncRewake,omitempty"`
+	// StatusMessage is accepted for compatibility (spinner text; not shown).
+	StatusMessage string `json:"statusMessage,omitempty"`
+	// Once is accepted for compatibility; Claude Code ignores it in settings files.
+	Once bool `json:"once,omitempty"`
+	// Timeout is the execution timeout in seconds (0 = default 600 s).
+	Timeout int `json:"timeout,omitempty"`
 }
-
-// AggregatedHookResult combines the results of multiple hook executions for
-// the same lifecycle event.
-type AggregatedHookResult struct {
-	// Blocked is true if any hook returned HookDecisionBlock.
-	Blocked bool
-	// BlockReasons collects the reasons from all blocking hooks.
-	BlockReasons []string
-	// ModifiedContent contains the final modified content (last writer wins).
-	ModifiedContent string
-}
-
-// HookCallback is the Go-native alternative to a shell command hook.
-// Either Command (shell) or Callback (Go func) is set per HookDefinition.
-type HookCallback func(input map[string]any) (*HookResult, error)

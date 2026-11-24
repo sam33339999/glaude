@@ -2,13 +2,13 @@
 package: types
 import_path: pkg/types
 layer: types
-generated_at: 2026-11-23T14:09:22Z
+generated_at: 2026-11-24T06:00:34Z
 source_files: [command.go, hooks.go, ids.go, logs.go, message.go, permissions.go, plugin.go, question.go, todo.go, types.go]
 ---
 
 # pkg/types
 
-> Layer: **Types (zero-dep)** · Files: 10 · Interfaces: 2 · Structs: 31 · Functions: 2
+> Layer: **Types (zero-dep)** · Files: 10 · Interfaces: 2 · Structs: 30 · Functions: 3
 
 ## Interfaces
 
@@ -36,13 +36,12 @@ type MCPConnection interface {
 ## Structs
 
 - **AdditionalWorkingDirectory** — 2 fields: Path, Source
-- **AggregatedHookResult** — 3 fields: Blocked, BlockReasons, ModifiedContent
 - **CacheControl** — 1 fields: Type
 - **CommandBase** — 12 fields: Name, Description, Type, Source, Aliases, IsHidden, IsMCP, ArgumentHint, ...
-- **ContentBlock** — 12 fields: Type, CacheControl, Text, ID, Name, Input, ToolUseID, Content, ...
+- **ContentBlock** — 13 fields: Type, CacheControl, Text, ID, Name, Input, ToolUseID, Content, ...
 - **EntryEnvelope** — 2 fields: Type, Raw
-- **HookDefinition** — 3 fields: Command, Matcher, TimeoutMs
-- **HookResult** — 3 fields: Decision, Reason, ModifiedContent
+- **HookCommand** — 11 fields: Type, Command, Args, Shell, If, OnFailure, Async, AsyncRewake, ...
+- **HookMatcher** — 2 fields: Matcher, Hooks
 - **ImageSource** — 4 fields: Type, MediaType, Data, URL
 - **LoadedPlugin** — 3 fields: Config, Commands, Hooks
 - **LocalCommand** — 3 fields: SupportsNonInteractive, Call (embeds CommandBase)
@@ -67,14 +66,11 @@ type MCPConnection interface {
 - **ToolResult** — 3 fields: ToolUseId, Content, IsError
 - **TranscriptMessage** — 4 fields: SerializedMessage, ParentUUID, IsSidechain, AgentId
 
-## Function Types
-
-- `HookCallback` — `func(input map[string]any) (*HookResult, error)`
-
 ## Functions
 
 - `AsAgentId(s string) (AgentId, error)`
 - `AsSessionId(s string) SessionId`
+- `WireContent(blocks []ContentBlock) []ContentBlock`
 
 ## Constants
 
@@ -117,12 +113,10 @@ type MCPConnection interface {
 - `EntryTypeTranscript`
 - `EntryTypeUser`
 - `EntryTypeWorktree`
-- `HookDecisionApprove`
-- `HookDecisionBlock`
-- `HookDecisionModify`
 - `HookNotification`
 - `HookPostSampling`
 - `HookPostToolUse`
+- `HookPostToolUseFailure`
 - `HookPreSampling`
 - `HookPreToolUse`
 - `HookSessionEnd`
@@ -160,17 +154,16 @@ type MCPConnection interface {
 
 **Exported type references (files that use types from this package):**
 - `AdditionalWorkingDirectory` → `internal/bootstrap/wire.go`, `internal/state/store.go`
-- `AggregatedHookResult` → `internal/hooks/hooks.go`
 - `AppStateReader` → `internal/state/store.go`
 - `CacheControl` → `internal/engine/query.go`
-- `ContentBlock` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/run.go`, `internal/bootstrap/session_test.go` (test), `internal/bootstrap/wire.go`, `internal/bootstrap/wire_fork_test.go` (test) + 47 more
+- `ContentBlock` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/run.go`, `internal/bootstrap/session_test.go` (test), `internal/bootstrap/wire.go`, `internal/bootstrap/wire_fork_test.go` (test) + 51 more
 - `EntryEnvelope` → `internal/commands/resume.go`, `internal/session/store.go`, `internal/session/store_test.go` (test)
-- `HookDefinition` → `internal/config/loader.go`, `internal/config/loader_test.go` (test), `internal/hooks/hooks.go`
-- `HookResult` → `internal/hooks/hooks.go`
+- `HookCommand` → `internal/config/loader_test.go` (test), `internal/engine/tool_hooks_test.go` (test), `internal/hooks/hooks.go`, `internal/hooks/hooks_test.go` (test), `internal/tools/codemode/hooks_test.go` (test)
+- `HookMatcher` → `internal/config/loader.go`, `internal/config/loader_test.go` (test), `internal/engine/tool_hooks_test.go` (test), `internal/hooks/hooks.go`, `internal/hooks/hooks_test.go` (test) + 1 more
 - `ImageSource` → `internal/compact/images_test.go` (test), `internal/engine/btw_test.go` (test), `internal/engine/tool_images_test.go` (test), `internal/tui/clipboard_paste.go`, `internal/tui/clipboard_paste_test.go` (test) + 4 more
 - `LoadedPlugin` → `internal/plugin/plugin.go`, `internal/state/store.go`
 - `MCPConnection` → `internal/state/store.go`
-- `Message` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/run.go`, `internal/bootstrap/session.go`, `internal/bootstrap/session_test.go` (test), `internal/bootstrap/wire.go` + 65 more
+- `Message` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/run.go`, `internal/bootstrap/session.go`, `internal/bootstrap/session_test.go` (test), `internal/bootstrap/wire.go` + 69 more
 - `PermissionRule` → `internal/bootstrap/wire.go`
 - `PluginConfig` → `internal/plugin/plugin.go`
 - `PluginError` → `internal/plugin/plugin.go`
@@ -178,13 +171,13 @@ type MCPConnection interface {
 - `QuestionResponse` → `internal/bootstrap/wire.go`, `internal/tools/interact/interact.go`, `internal/tools/interact/interact_test.go` (test), `internal/tui/init.go`, `internal/tui/model.go` + 1 more
 - `SerializedMessage` → `internal/bootstrap/session.go`, `internal/bootstrap/session_test.go` (test), `internal/commands/resume.go`, `internal/commands/resume_test.go` (test), `internal/transcript/recorder.go` + 2 more
 - `TodoItem` → `internal/state/store.go`, `internal/tools/interact/interact.go`, `internal/tools/interact/interact_test.go` (test), `internal/tools/interact/todo_append_test.go` (test), `internal/tui/coordinator_layout_test.go` (test) + 3 more
-- `ToolPermissionContext` → `internal/bootstrap/acp_test.go` (test), `internal/bootstrap/wire.go`, `internal/permissions/ask_concurrency_test.go` (test), `internal/permissions/checker.go`, `internal/permissions/checker_test.go` (test) + 4 more
+- `ToolPermissionContext` → `internal/bootstrap/acp_test.go` (test), `internal/bootstrap/wire.go`, `internal/permissions/ask_concurrency_test.go` (test), `internal/permissions/checker.go`, `internal/permissions/checker_test.go` (test) + 6 more
 
 ## Dependencies
 
 **Imports:** *(none — zero-dependency)*
 
-**Imported by:** `internal/bootstrap`, `internal/commands`, `internal/compact`, `internal/config`, `internal/engine`, `internal/hooks`, `internal/memdir`, `internal/msgqueue`, `internal/permissions`, `internal/plugin`, `internal/session`, `internal/state`, `internal/tools/interact`, `internal/transcript`, `internal/tui`, `pkg/utils/ids`
+**Imported by:** `internal/bootstrap`, `internal/commands`, `internal/compact`, `internal/config`, `internal/engine`, `internal/hooks`, `internal/memdir`, `internal/msgqueue`, `internal/permissions`, `internal/plugin`, `internal/session`, `internal/state`, `internal/tools/codemode`, `internal/tools/interact`, `internal/transcript`, `internal/tui`, `pkg/utils/ids`
 
 <!-- AUTO-GENERATED ABOVE — DO NOT EDIT -->
 <!-- MANUAL NOTES BELOW — preserved across regeneration -->

@@ -2,7 +2,7 @@
 package: tasks
 import_path: internal/tools/tasks
 layer: tools
-generated_at: 2026-11-23T14:09:22Z
+generated_at: 2026-11-24T06:00:34Z
 source_files: [doc.go, tasks.go]
 ---
 
@@ -35,7 +35,7 @@ source_files: [doc.go, tasks.go]
 
 ## Dependencies
 
-**Imports:** `internal/agenttype`, `internal/tools`
+**Imports:** `internal/agenttype`, `internal/textutil`, `internal/tools`
 
 **Imported by:** `internal/bootstrap`
 

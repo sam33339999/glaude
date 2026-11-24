@@ -2,7 +2,7 @@
 package: agent
 import_path: internal/tools/agent
 layer: tools
-generated_at: 2026-11-23T14:09:22Z
+generated_at: 2026-11-24T06:00:34Z
 source_files: [agent.go, doc.go, external.go, getagentstatus.go, sendmessage.go]
 ---
 
@@ -31,7 +31,7 @@ source_files: [agent.go, doc.go, external.go, getagentstatus.go, sendmessage.go]
 
 ## Dependencies
 
-**Imports:** `internal/tools`
+**Imports:** `internal/textutil`, `internal/tools`
 
 **Imported by:** `internal/bootstrap`
 

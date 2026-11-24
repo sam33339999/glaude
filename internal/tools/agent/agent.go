@@ -199,6 +199,9 @@ func (t *agentTool) Call(input tools.Input, ctx *tools.UseContext, onProgress to
 		AgentName:    in.AgentName,
 		Background:   background,
 		CacheParams:  ctx.CacheParams,
+		// Sub-agent tool hooks report the parent session.
+		SessionID:      ctx.SessionID,
+		TranscriptPath: ctx.TranscriptPath,
 	})
 	if err != nil {
 		return &tools.Result{

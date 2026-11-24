@@ -66,6 +66,22 @@ func (r *Recorder) SessionID() string {
 	return string(r.sid)
 }
 
+// Path returns the session JSONL file path ("" for a nil recorder or when
+// it cannot be resolved).
+func (r *Recorder) Path() string {
+	if r == nil {
+		return ""
+	}
+	r.mu.Lock()
+	cwd, sid := r.cwd, r.sid
+	r.mu.Unlock()
+	p, err := session.TranscriptPath(cwd, sid)
+	if err != nil {
+		return ""
+	}
+	return p
+}
+
 // Record appends the not-yet-persisted tail of msgs (user/assistant roles
 // only; other roles are skipped but still advance the baseline). On append
 // failure the baseline stays at the failed message so a later call retries

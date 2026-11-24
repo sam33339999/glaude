@@ -2,7 +2,7 @@
 package: misc
 import_path: internal/tools/misc
 layer: tools
-generated_at: 2026-11-23T14:09:22Z
+generated_at: 2026-11-24T06:00:34Z
 source_files: [doc.go, misc.go]
 ---
 
@@ -25,7 +25,7 @@ source_files: [doc.go, misc.go]
 
 ## Dependencies
 
-**Imports:** `internal/tools`
+**Imports:** `internal/textutil`, `internal/tools`
 
 **Imported by:** `internal/bootstrap`
 

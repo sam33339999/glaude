@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/tunsuy/glaude/internal/codemode"
+	"github.com/tunsuy/glaude/internal/hooks"
 	"github.com/tunsuy/glaude/internal/permissions"
 	"github.com/tunsuy/glaude/internal/tools"
 
@@ -47,6 +48,17 @@ type codeModeTool struct {
 	callSeq atomic.Int64
 	// approvalMu serializes approvals.json read-modify-write cycles.
 	approvalMu sync.Mutex
+	// hooks runs the settings.json tool hooks around every inner call (nil = none).
+	hooks *hooks.Dispatcher
+}
+
+// Option configures the CodeMode tool.
+type Option func(*codeModeTool)
+
+// WithToolHooks makes every inner tool call run the settings.json
+// PreToolUse/PostToolUse hooks, like a direct tool call does.
+func WithToolHooks(d *hooks.Dispatcher) Option {
+	return func(t *codeModeTool) { t.hooks = d }
 }
 
 // NewCodeModeTool constructs the CodeMode tool. reg supplies the callable
@@ -56,14 +68,18 @@ type codeModeTool struct {
 // history, result spill files, controlled imports, snippets and persisted
 // CodeMode approvals ("" disables those features). The catalog is snapshotted
 // at construction — the tool surface is session-pinned (cache-stable).
-func NewCodeModeTool(reg *tools.Registry, checker permissions.Checker, engine codemode.Runtime, dataDir string) tools.Tool {
-	return &codeModeTool{
+func NewCodeModeTool(reg *tools.Registry, checker permissions.Checker, engine codemode.Runtime, dataDir string, opts ...Option) tools.Tool {
+	t := &codeModeTool{
 		reg:     reg,
 		checker: checker,
 		engine:  engine,
 		catalog: codemode.BuildCatalog(reg),
 		dataDir: dataDir,
 	}
+	for _, o := range opts {
+		o(t)
+	}
+	return t
 }
 
 func (t *codeModeTool) Name() string { return "CodeMode" }
@@ -213,6 +229,10 @@ func (t *codeModeTool) Call(input tools.Input, uctx *tools.UseContext, _ tools.O
 	var content string
 	if execErr != nil {
 		content = execErr.Error()
+		// Hook messages explain why a call failed; keep them on errors too.
+		if hookLines := st.hookLines(); len(hookLines) > 0 {
+			content += "\n" + strings.Join(hookLines, "\n")
+		}
 	} else {
 		if result != nil && len(st.extraLogs) > 0 {
 			result.Logs = append(result.Logs, st.extraLogs...)
@@ -240,10 +260,12 @@ func (t *codeModeTool) Call(input tools.Input, uctx *tools.UseContext, _ tools.O
 		SideEffects: st.snapshotSideEffects(),
 	})
 
+	// A hook's "continue": false inside the sandbox stops the outer loop too.
+	stop := st.hookStopReason()
 	if execErr != nil {
-		return &tools.Result{IsError: true, Content: content}, nil
+		return &tools.Result{IsError: true, Content: content, HookStopReason: stop}, nil
 	}
-	return &tools.Result{Content: content}, nil
+	return &tools.Result{Content: content, HookStopReason: stop}, nil
 }
 
 // formatResult renders logs + return value; results over maxResultBytes spill

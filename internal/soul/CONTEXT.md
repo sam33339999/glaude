@@ -2,7 +2,7 @@
 package: soul
 import_path: internal/soul
 layer: unknown
-generated_at: 2026-11-23T14:09:22Z
+generated_at: 2026-11-24T06:00:34Z
 source_files: [soul.go]
 ---
 
@@ -36,7 +36,7 @@ source_files: [soul.go]
 
 ## Dependencies
 
-**Imports:** *(none — zero-dependency)*
+**Imports:** `internal/textutil`
 
 **Imported by:** `internal/bootstrap`, `internal/commands`, `internal/tui`
 

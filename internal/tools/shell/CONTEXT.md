@@ -2,7 +2,7 @@
 package: shell
 import_path: internal/tools/shell
 layer: tools
-generated_at: 2026-11-23T14:09:22Z
+generated_at: 2026-11-24T06:00:34Z
 source_files: [bash.go, doc.go, matcher.go, run.go, security.go]
 ---
 
@@ -35,7 +35,7 @@ source_files: [bash.go, doc.go, matcher.go, run.go, security.go]
 
 ## Dependencies
 
-**Imports:** `internal/tools`
+**Imports:** `internal/textutil`, `internal/tools`
 
 **Imported by:** `internal/bootstrap`, `internal/tui`
 

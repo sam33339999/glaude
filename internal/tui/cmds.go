@@ -118,10 +118,12 @@ func startQueryCmd(m *AppModel, userText string, fromUser bool) tea.Cmd {
 		SystemPrompt: sysPrompt,
 		QuerySource:  "foreground",
 		ToolUseContext: &tools.UseContext{
-			Ctx:         ctx,
-			Coordinator: m.agentCoordinator,
-			MemoryStore: m.memoryStore,
-			WorkingDir:  m.appState.GetState().WorkingDir,
+			Ctx:            ctx,
+			Coordinator:    m.agentCoordinator,
+			MemoryStore:    m.memoryStore,
+			WorkingDir:     m.appState.GetState().WorkingDir,
+			SessionID:      m.transcript.SessionID(),
+			TranscriptPath: m.transcript.Path(),
 		},
 	}
 

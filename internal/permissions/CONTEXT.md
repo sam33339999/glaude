@@ -2,13 +2,13 @@
 package: permissions
 import_path: internal/permissions
 layer: services
-generated_at: 2026-11-23T14:09:22Z
+generated_at: 2026-11-24T06:00:34Z
 source_files: [ask.go, checker.go, denial.go, filesystem.go, persist.go]
 ---
 
 # internal/permissions
 
-> Layer: **Services** · Files: 5 · Interfaces: 1 · Structs: 9 · Functions: 3
+> Layer: **Services** · Files: 5 · Interfaces: 2 · Structs: 9 · Functions: 3
 
 ## Interfaces
 
@@ -23,16 +23,26 @@ type Checker interface {
 }
 ```
 
+### HookAwareChecker (2 methods)
+> HookAwareChecker is implemented by checkers that support the decisions of
+
+```go
+type HookAwareChecker interface {
+    CanUseToolHookAllowed(ctx context.Context, toolName string, input tools.Input, tctx *tools.UseContext) (tools.PermissionResult, error)
+    MatchRule(rule string, toolName string, input tools.Input) bool
+}
+```
+
 ## Structs
 
 - **AskRequest** — 9 fields: ID, ToolName, ToolUseID, Message, Input, Suggestions, BlockedPath, ProjectPath, ...
 - **AskResponse** — 5 fields: ID, Decision, AlwaysAllow, UserModified, AlwaysInCodeMode
-- **CheckerConfig** — 7 fields: PermCtx, Dispatcher, Registry, AskCh, RespCh, Persist, ModeFn
+- **CheckerConfig** — 6 fields: PermCtx, Registry, AskCh, RespCh, Persist, ModeFn
 - **DangerousPathResult** — 3 fields: Dangerous, Matched, Reason
 - **DenialLimits** — 2 fields: MaxConsecutive, MaxTotal
 - **DenialRecord** — 4 fields: ToolName, ToolUseID, Reason, DeniedAt
 - **DenialTrackingState** — 5 fields: DenialCount, LastDeniedAt, RecentDenials
-- **PermissionRequest** — 6 fields: ToolName, ToolUseID, Input, ToolResult, FromCodeMode, Note
+- **PermissionRequest** — 8 fields: ToolName, ToolUseID, Input, ToolResult, FromCodeMode, Note, ForceAsk, HookReason
 - **PersistConfig** — 1 fields: ProjectDir
 
 ## Functions
@@ -49,14 +59,15 @@ type Checker interface {
 **Exported type references (files that use types from this package):**
 - `AskRequest` → `internal/bootstrap/acp_test.go` (test), `internal/bootstrap/wire.go`, `internal/tui/init.go`, `internal/tui/model.go`, `internal/tui/permission_codemode_test.go` (test)
 - `AskResponse` → `internal/bootstrap/acp_test.go` (test), `internal/bootstrap/wire.go`, `internal/tui/init.go`, `internal/tui/model.go`, `internal/tui/permission_codemode_test.go` (test)
-- `Checker` → `internal/bootstrap/acp.go`, `internal/bootstrap/acp_test.go` (test), `internal/bootstrap/wire.go`, `internal/engine/engine.go`, `internal/engine/orchestration.go` + 3 more
-- `CheckerConfig` → `internal/bootstrap/acp_test.go` (test), `internal/bootstrap/wire.go`
-- `PermissionRequest` → `internal/bootstrap/acp.go`, `internal/engine/btw_test.go` (test), `internal/engine/orchestration.go`, `internal/tools/codemode/bridge.go`, `internal/tools/codemode/tool_test.go` (test) + 1 more
+- `Checker` → `internal/bootstrap/acp.go`, `internal/bootstrap/acp_test.go` (test), `internal/bootstrap/wire.go`, `internal/engine/engine.go`, `internal/engine/orchestration.go` + 5 more
+- `CheckerConfig` → `internal/bootstrap/acp_test.go` (test), `internal/bootstrap/wire.go`, `internal/tools/codemode/hooks_test.go` (test)
+- `HookAwareChecker` → `internal/bootstrap/wire.go`, `internal/engine/orchestration.go`, `internal/tools/codemode/bridge.go`
+- `PermissionRequest` → `internal/bootstrap/acp.go`, `internal/engine/btw_test.go` (test), `internal/engine/orchestration.go`, `internal/engine/tool_hooks_test.go` (test), `internal/tools/codemode/bridge.go` + 3 more
 - `PersistConfig` → `internal/bootstrap/wire.go`
 
 ## Dependencies
 
-**Imports:** `internal/config`, `internal/hooks`, `internal/tools`, `pkg/types`
+**Imports:** `internal/config`, `internal/tools`, `pkg/types`
 
 **Imported by:** `internal/bootstrap`, `internal/engine`, `internal/tools/codemode`, `internal/tui`
 

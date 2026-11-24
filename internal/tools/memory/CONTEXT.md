@@ -2,7 +2,7 @@
 package: memory
 import_path: internal/tools/memory
 layer: tools
-generated_at: 2026-11-23T14:09:22Z
+generated_at: 2026-11-24T06:00:34Z
 source_files: [doc.go, memory.go]
 ---
 
@@ -18,7 +18,7 @@ source_files: [doc.go, memory.go]
 
 ## Dependencies
 
-**Imports:** `internal/memdir`, `internal/tools`
+**Imports:** `internal/memdir`, `internal/textutil`, `internal/tools`
 
 **Imported by:** `internal/bootstrap`
 
