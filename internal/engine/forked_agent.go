@@ -2,7 +2,9 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/tunsuy/glaude/internal/api"
 	"github.com/tunsuy/glaude/internal/tools"
@@ -54,6 +56,31 @@ type ForkedAgentConfig struct {
 	AllowedTools []string
 	// OnMessage is an optional callback invoked for each message emitted by the fork.
 	OnMessage func(types.Message)
+	// OnUsage, when set, is called exactly once when the fork finishes
+	// (successfully or not) with its accumulated API usage. Background
+	// forks are otherwise invisible in usage logs.
+	OnUsage func(ForkUsage)
+}
+
+// ForkUsage is the API usage accumulated over one forked-agent run.
+type ForkUsage struct {
+	QuerySource string
+	// Model is CacheSafeParams.Model, or the engine's main-target model
+	// when that is empty (the fork then runs on the main target).
+	Model string
+	// SessionID and WorkingDir come from the parent's ToolUseContext.
+	SessionID  string
+	WorkingDir string
+	Start      time.Time
+	End        time.Time
+	// Outcome is "done", "error" or "interrupted" (context cancelled).
+	Outcome      string
+	APIRequests  int
+	ToolCalls    int
+	InputTokens  int
+	OutputTokens int
+	CacheRead    int
+	CacheCreated int
 }
 
 // RunForkedAgent runs an isolated background agent that shares the parent engine's
@@ -67,6 +94,37 @@ type ForkedAgentConfig struct {
 // query loop terminates and RunForkedAgent returns the messages collected so far
 // along with the context error.
 func RunForkedAgent(ctx context.Context, eng QueryEngine, cfg ForkedAgentConfig) ([]types.Message, error) {
+	if cfg.OnUsage == nil {
+		return runForkedAgent(ctx, eng, cfg, nil)
+	}
+	usage := ForkUsage{QuerySource: cfg.QuerySource, Start: time.Now()}
+	if p := cfg.CacheSafeParams; p != nil {
+		usage.Model = p.Model
+		if p.ToolUseContext != nil {
+			usage.SessionID = p.ToolUseContext.SessionID
+			usage.WorkingDir = p.ToolUseContext.WorkingDir
+		}
+	}
+	if impl, ok := eng.(*engineImpl); ok && usage.Model == "" {
+		usage.Model = impl.MainTarget().Model
+	}
+	msgs, err := runForkedAgent(ctx, eng, cfg, &usage)
+	usage.End = time.Now()
+	switch {
+	case err == nil:
+		usage.Outcome = "done"
+	case errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded):
+		usage.Outcome = "interrupted"
+	default:
+		usage.Outcome = "error"
+	}
+	cfg.OnUsage(usage)
+	return msgs, err
+}
+
+// runForkedAgent is RunForkedAgent's body; usage (nil = not tracked)
+// accumulates each request's usage from the fork's message stream.
+func runForkedAgent(ctx context.Context, eng QueryEngine, cfg ForkedAgentConfig, usage *ForkUsage) ([]types.Message, error) {
 	if eng == nil {
 		return nil, fmt.Errorf("engine: forked agent: engine must not be nil")
 	}
@@ -104,6 +162,18 @@ func RunForkedAgent(ctx context.Context, eng QueryEngine, cfg ForkedAgentConfig)
 	var collected []types.Message
 	for msg := range msgCh {
 		switch msg.Type {
+		case MsgTypeTurnComplete:
+			if usage != nil {
+				usage.APIRequests++
+				usage.InputTokens += msg.InputTokens
+				usage.OutputTokens += msg.OutputTokens
+				usage.CacheRead += msg.CacheReadTokens
+				usage.CacheCreated += msg.CacheCreatedTokens
+			}
+		case MsgTypeToolResult:
+			if usage != nil {
+				usage.ToolCalls++
+			}
 		case MsgTypeAssistantMessage:
 			if msg.AssistantMsg != nil {
 				collected = append(collected, *msg.AssistantMsg)

@@ -2,7 +2,7 @@
 package: tools
 import_path: internal/tools
 layer: tools
-generated_at: 2026-11-24T06:00:34Z
+generated_at: 2026-11-25T15:40:49Z
 source_files: [base.go, registry.go, tool.go]
 ---
 
@@ -149,7 +149,7 @@ type Tool interface {
 - `Result` → `internal/bootstrap/wire_fork_test.go` (test), `internal/codemode/catalog_test.go` (test), `internal/engine/btw_test.go` (test), `internal/engine/orchestration_test.go` (test), `internal/engine/tool_hooks_test.go` (test) + 25 more
 - `SnapshotSlot` → `internal/engine/btw_test.go` (test), `internal/tui/btw_test.go` (test), `internal/tui/cmds.go`, `internal/tui/model.go`
 - `Tool` → `internal/bootstrap/wire_fork_test.go` (test), `internal/engine/btw_test.go` (test), `internal/engine/engine.go`, `internal/engine/orchestration_test.go` (test), `internal/engine/tool_hooks.go` + 44 more
-- `UseContext` → `internal/bootstrap/acp.go`, `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/mcp.go`, `internal/bootstrap/mcp_connect_test.go` (test), `internal/bootstrap/run.go` + 69 more
+- `UseContext` → `internal/bootstrap/acp.go`, `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/mcp.go`, `internal/bootstrap/mcp_connect_test.go` (test), `internal/bootstrap/run.go` + 70 more
 - `ValidationResult` → `internal/engine/orchestration_test.go` (test), `internal/mcp/adapter.go`, `internal/permissions/checker_test.go` (test), `internal/tools/fileops/fileread.go`, `internal/tools/fileops/glob.go` + 5 more
 
 ## Dependencies

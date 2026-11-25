@@ -2,13 +2,13 @@
 package: engine
 import_path: internal/engine
 layer: core
-generated_at: 2026-11-24T06:00:34Z
+generated_at: 2026-11-25T15:40:49Z
 source_files: [budget.go, cache_params.go, compaction.go, engine.go, forked_agent.go, msg.go, orchestration.go, query.go, stop_hooks.go, thinking.go, tool_hooks.go, tool_images.go]
 ---
 
 # internal/engine
 
-> Layer: **Core** · Files: 12 · Interfaces: 1 · Structs: 15 · Functions: 9
+> Layer: **Core** · Files: 12 · Interfaces: 1 · Structs: 16 · Functions: 9
 
 ## Interfaces
 
@@ -32,7 +32,8 @@ type QueryEngine interface {
 - **BudgetTracker** — 4 fields: ContinuationCount, LastDeltaTokens, LastGlobalTurnTokens, StartedAt
 - **CacheSafeParams** — 8 fields: SystemPrompt, ContextMessages, ToolUseContext, Model, Client, ContextWindow, MaxTokens, ThinkingOrigin
 - **Config** — 10 fields: Client, Registry, Model, MaxTokens, PermissionChecker, StopHooks, ToolHooks, MsgQueue, ...
-- **ForkedAgentConfig** — 6 fields: PromptMessages, CacheSafeParams, QuerySource, MaxTurns, AllowedTools, OnMessage
+- **ForkUsage** — 13 fields: QuerySource, Model, SessionID, WorkingDir, Start, End, Outcome, APIRequests, ...
+- **ForkedAgentConfig** — 7 fields: PromptMessages, CacheSafeParams, QuerySource, MaxTurns, AllowedTools, OnMessage, OnUsage
 - **MainTarget** — 6 fields: Client, ProviderID, Model, ContextWindow, MaxTokens, Endpoint
 - **Msg** — 21 fields: Type, TextDelta, ToolUseID, ToolName, InputDelta, ToolInput, ToolResult, AssistantMsg, ...
 - **PermissionRequestMsg** — 6 fields: RequestID, ToolUseID, ToolName, Message, Input, RespFn
@@ -96,6 +97,7 @@ type QueryEngine interface {
 **Exported type references (files that use types from this package):**
 - `CacheSafeParams` → `internal/bootstrap/tiers_test.go` (test), `internal/bootstrap/wire.go`, `internal/bootstrap/wire_fork_test.go` (test), `internal/memdir/dream.go`, `internal/tui/btw.go` + 2 more
 - `Config` → `internal/bootstrap/wire.go`
+- `ForkUsage` → `internal/bootstrap/fork_usage_test.go` (test), `internal/bootstrap/wire.go`, `internal/memdir/dream.go`, `internal/memdir/extract.go`
 - `ForkedAgentConfig` → `internal/memdir/dream.go`, `internal/memdir/extract.go`, `internal/memdir/session_memory.go`
 - `MainTarget` → `internal/bootstrap/modelswitch.go`, `internal/bootstrap/modelswitch_test.go` (test), `internal/bootstrap/provider.go`, `internal/bootstrap/soul_subagent_test.go` (test), `internal/bootstrap/tiers_test.go` (test) + 9 more
 - `Msg` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/run.go`, `internal/bootstrap/tiers_test.go` (test), `internal/bootstrap/wire.go`, `internal/bootstrap/wire_fork_test.go` (test) + 11 more

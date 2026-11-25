@@ -38,6 +38,10 @@ type ExtractMemoriesConfig struct {
 	// the --debug logger; the global logger would write to stderr and draw
 	// over the TUI.
 	Logf func(format string, args ...any)
+	// OnUsage receives each extraction fork's API usage (nil = discard).
+	// Bootstrap logs it to the turn-timing log under query_source
+	// "extract_memories".
+	OnUsage func(engine.ForkUsage)
 }
 
 // DefaultExtractConfig returns the default extraction configuration.
@@ -120,6 +124,7 @@ func ExecuteExtractMemories(
 		QuerySource:     extractMemoriesQuerySource,
 		MaxTurns:        maxTurns,
 		AllowedTools:    []string{"MemoryRead", "MemoryWrite", "MemoryDelete"},
+		OnUsage:         cfg.OnUsage,
 	}
 
 	// Run the forked agent. Errors are logged but not propagated —

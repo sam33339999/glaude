@@ -2,7 +2,7 @@
 package: memory
 import_path: internal/tools/memory
 layer: tools
-generated_at: 2026-11-24T06:00:34Z
+generated_at: 2026-11-25T15:40:49Z
 source_files: [doc.go, memory.go]
 ---
 

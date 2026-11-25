@@ -2,7 +2,7 @@
 package: memdir
 import_path: internal/memdir
 layer: services
-generated_at: 2026-11-24T06:00:34Z
+generated_at: 2026-11-25T15:40:49Z
 source_files: [discover.go, dream.go, extract.go, extract_prompt.go, freshness.go, gate.go, include.go, loader.go, quick_memory.go, relevance.go, scope.go, secret_scanner.go, session_memory.go, status.go, store.go, types.go]
 ---
 
@@ -12,9 +12,9 @@ source_files: [discover.go, dream.go, extract.go, extract_prompt.go, freshness.g
 
 ## Structs
 
-- **AutoDreamConfig** — 3 fields: Store, Enabled, Logf
+- **AutoDreamConfig** — 4 fields: Store, Enabled, Logf, OnUsage
 - **DiscoveredFile** — 2 fields: Path, Scope
-- **ExtractMemoriesConfig** — 4 fields: Store, MaxTurns, Enabled, Logf
+- **ExtractMemoriesConfig** — 5 fields: Store, MaxTurns, Enabled, Logf, OnUsage
 - **MemoryFile** — 3 fields: Header, Body, Path
 - **MemoryHeader** — 6 fields: Title, Type, CreatedAt, UpdatedAt, Tags, Source
 - **MemoryPathOptions** — 1 fields: AutoMemoryDirectory

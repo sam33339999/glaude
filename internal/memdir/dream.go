@@ -26,6 +26,9 @@ type AutoDreamConfig struct {
 	// Logf receives background failures (nil = discard); see
 	// ExtractMemoriesConfig.Logf.
 	Logf func(format string, args ...any)
+	// OnUsage receives each dream fork's API usage (nil = discard); see
+	// ExtractMemoriesConfig.OnUsage.
+	OnUsage func(engine.ForkUsage)
 }
 
 // DefaultAutoDreamConfig returns the default auto-dream configuration.
@@ -67,6 +70,7 @@ func ExecuteAutoDream(ctx context.Context, hookCtx *engine.StopHookContext, cfg 
 		QuerySource:     autoDreamQuerySource,
 		MaxTurns:        autoDreamMaxTurns,
 		AllowedTools:    []string{"MemoryRead", "MemoryWrite", "MemoryDelete"},
+		OnUsage:         cfg.OnUsage,
 	}
 
 	if _, err := engine.RunForkedAgent(ctx, hookCtx.Engine, forkedCfg); err != nil {

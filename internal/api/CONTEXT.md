@@ -2,7 +2,7 @@
 package: api
 import_path: internal/api
 layer: services
-generated_at: 2026-11-24T06:00:34Z
+generated_at: 2026-11-25T15:40:49Z
 source_files: [accumulate.go, client.go, debug_logger.go, errors.go, factory.go, json.go, listmodels.go, openai_client.go, openai_images.go, openai_stream.go, openai_tool_schema.go, openai_types.go, ratelimit.go, retry.go, stream.go, usage.go]
 ---
 
@@ -138,12 +138,12 @@ type StreamReader interface {
 - `ListModelsError` → `internal/bootstrap/setup.go`
 - `MessageDeltaData` → `internal/bootstrap/acp_integration_test.go` (test), `internal/engine/engine_test.go` (test), `internal/engine/thinking_display_test.go` (test)
 - `MessageParam` → `internal/compact/auto.go`, `internal/engine/query.go`, `internal/tui/autorun.go`
-- `MessageRequest` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/tiers_test.go` (test), `internal/compact/auto.go`, `internal/compact/auto_test.go` (test), `internal/engine/btw_test.go` (test) + 17 more
+- `MessageRequest` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/tiers_test.go` (test), `internal/compact/auto.go`, `internal/compact/auto_test.go` (test), `internal/engine/btw_test.go` (test) + 18 more
 - `MessageResponse` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/tiers_test.go` (test), `internal/compact/auto.go`, `internal/compact/auto_test.go` (test), `internal/engine/engine_test.go` (test) + 7 more
 - `MessageStartData` → `internal/bootstrap/acp_integration_test.go` (test), `internal/engine/engine_test.go` (test), `internal/engine/thinking_display_test.go` (test)
 - `RetryOptions` → `internal/engine/query.go`
 - `StreamEvent` → `internal/bootstrap/acp_integration_test.go` (test), `internal/engine/engine_test.go` (test), `internal/engine/max_tokens_test.go` (test), `internal/engine/thinking_display_test.go` (test)
-- `StreamReader` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/tiers_test.go` (test), `internal/compact/auto_test.go` (test), `internal/engine/btw_test.go` (test), `internal/engine/cache_breakpoints_test.go` (test) + 14 more
+- `StreamReader` → `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/tiers_test.go` (test), `internal/compact/auto_test.go` (test), `internal/engine/btw_test.go` (test), `internal/engine/cache_breakpoints_test.go` (test) + 15 more
 - `SystemBlock` → `internal/engine/query.go`
 - `ToolSchema` → `internal/engine/compaction.go`
 - `Usage` → `internal/bootstrap/acp_integration_test.go` (test), `internal/engine/compaction.go`, `internal/engine/engine_test.go` (test), `internal/engine/max_tokens_test.go` (test), `internal/engine/query.go` + 2 more

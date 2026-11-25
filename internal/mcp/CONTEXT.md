@@ -2,7 +2,7 @@
 package: mcp
 import_path: internal/mcp
 layer: services
-generated_at: 2026-11-23T14:09:22Z
+generated_at: 2026-11-25T15:40:49Z
 source_files: [adapter.go, client.go, jsonrpc.go, pool.go, transport.go, transport_ws.go, wake.go]
 ---
 
