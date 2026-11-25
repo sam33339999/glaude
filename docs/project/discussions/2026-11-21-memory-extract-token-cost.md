@@ -1,7 +1,7 @@
 # 記憶萃取（extract_memories）每輪重送整段歷史：token 成本問題
 
 > 日期：2026-11-21
-> 狀態：**已定案，實作中**（分支 `fix/memory-extract-cost`；決策與計畫見文末，2026-11-25）
+> 狀態：**PR 1–4 已實作**（分支 `fix/memory-extract-cost`，2026-11-26）；萃取送整段歷史或只送新增部分，**待實測後決定**，見文末「進度」
 > 發現於：`fix/openai-tool-arguments`（同分支修了萃取 agent 觸發的 400 與 log 蓋畫面）
 
 ## 現象
@@ -142,3 +142,21 @@ memdir: extract memories: engine: forked agent: engine: stream: API error 400:
 
 ### 收尾
 - 修完後從 `.claude/CLAUDE.md` 的「待處理問題」移除這一項，本文狀態改成「已完成」。
+
+## 進度（2026-11-26）
+
+| PR | commit | 狀態 |
+|----|--------|------|
+| 1 量測 | `8e52bf7` + review 修正 `f08ae8d` | ✅ |
+| 2 相同工具清單加執行階段過濾 | `bf34fd9` | ✅ |
+| 3 store 一致性加 MemoryEvents | `ad9cf8a` | ✅ |
+| 4 節流和摘要 | 本 commit | ✅（有部分延後，見下） |
+
+PR 4 實作的內容：
+- `ExtractThrottle`：每個 session 一個游標。游標之後新增的文字 ≥ 2000 bytes，或已過 5 輪且有任何新文字，才會萃取；同一時間只跑一個萃取。歷史變短（compaction、/clear）或換 session 時，游標歸零。主模型這一輪已經寫過記憶時，視為已處理，游標直接往前移。
+- 萃取摘要只涵蓋游標之後的新訊息，而且改成由新往舊取，超過上限時丟掉的是舊內容（修掉截掉最新內容的 bug）。
+
+延後或待決定：
+- **送整段歷史還是只送新增部分**：PR 2 之後 fork 的 request 前綴跟主對話一致，理論上能命中快取，但**還沒有實測**。目前保留送整段歷史，只靠節流把次數降下來。用 turn-timings 量到 `extract_memories` 的 cache read 佔總 prompt 的比例後再決定：≥ 80% 就維持現狀，否則改成只送新增部分（`ContextMessages` 留空，只送 extraction prompt）。
+- **compaction 前補跑一次萃取**：engine 目前沒有 compaction 前的同步 hook，要新增一個擴充點，所以延後。在節流的設計下，compaction 最多會漏掉一次門檻內的新內容（< 2000 bytes 或 < 5 輪）。
+- session 結束時補跑、`/dream` 記用量（`manual_dream`）、紀錄路徑改用 `opts.HomeDir`、fork 紀錄和前景回合的關聯鍵：同 PR 1 的已知缺口。

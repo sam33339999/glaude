@@ -2,7 +2,7 @@
 package: acptest
 import_path: internal/acpclient/acptest
 layer: services
-generated_at: 2026-11-25T16:45:14Z
+generated_at: 2026-11-25T16:47:52Z
 source_files: [agent.go]
 ---
 

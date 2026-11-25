@@ -2,7 +2,7 @@
 package: permission
 import_path: pkg/utils/permission
 layer: types
-generated_at: 2026-11-25T16:45:14Z
+generated_at: 2026-11-25T16:47:52Z
 source_files: [matcher.go]
 ---
 

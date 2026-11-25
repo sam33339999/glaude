@@ -2,7 +2,7 @@
 package: soul
 import_path: internal/soul
 layer: unknown
-generated_at: 2026-11-25T16:45:14Z
+generated_at: 2026-11-25T16:47:52Z
 source_files: [soul.go]
 ---
 

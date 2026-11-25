@@ -2,19 +2,20 @@
 package: memdir
 import_path: internal/memdir
 layer: services
-generated_at: 2026-11-25T16:45:14Z
-source_files: [discover.go, dream.go, extract.go, extract_prompt.go, freshness.go, gate.go, include.go, loader.go, lock.go, lock_other.go, lock_unix.go, lock_windows.go, quick_memory.go, relevance.go, scope.go, secret_scanner.go, session_memory.go, status.go, store.go, types.go]
+generated_at: 2026-11-25T16:47:52Z
+source_files: [discover.go, dream.go, extract.go, extract_prompt.go, extract_throttle.go, freshness.go, gate.go, include.go, loader.go, lock.go, lock_other.go, lock_unix.go, lock_windows.go, quick_memory.go, relevance.go, scope.go, secret_scanner.go, session_memory.go, status.go, store.go, types.go]
 ---
 
 # internal/memdir
 
-> Layer: **Services** · Files: 20 · Interfaces: 0 · Structs: 10 · Functions: 34
+> Layer: **Services** · Files: 21 · Interfaces: 0 · Structs: 11 · Functions: 35
 
 ## Structs
 
 - **AutoDreamConfig** — 4 fields: Store, Enabled, Logf, OnUsage
 - **DiscoveredFile** — 2 fields: Path, Scope
-- **ExtractMemoriesConfig** — 5 fields: Store, MaxTurns, Enabled, Logf, OnUsage
+- **ExtractMemoriesConfig** — 6 fields: Store, MaxTurns, Enabled, Logf, Throttle, OnUsage
+- **ExtractThrottle** — 7 fields: MinNewChars, MaxTurns
 - **MemoryFile** — 3 fields: Header, Body, Path
 - **MemoryHeader** — 6 fields: Title, Type, CreatedAt, UpdatedAt, Tags, Source
 - **MemoryPathOptions** — 1 fields: AutoMemoryDirectory
@@ -48,6 +49,7 @@ source_files: [discover.go, dream.go, extract.go, extract_prompt.go, freshness.g
 - `LoadScopedMemoryPrompt(files []DiscoveredFile) string`
 - `MemoryAge(updatedAt time.Time) string`
 - `MemoryFreshnessText(updatedAt time.Time) string`
+- `NewExtractThrottle() *ExtractThrottle`
 - `NewMemoryStore(projectDir string) (*MemoryStore, error)`
 - `NewMemoryStoreWithOptions(projectDir string, opts MemoryPathOptions) (*MemoryStore, error)`
 - `NewMemoryStoreWithPath(memoryDir string) *MemoryStore`
