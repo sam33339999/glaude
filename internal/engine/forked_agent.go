@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/tunsuy/glaude/internal/api"
@@ -52,7 +53,10 @@ type ForkedAgentConfig struct {
 	QuerySource string
 	// MaxTurns caps the number of agent turns (0 = no limit).
 	MaxTurns int
-	// AllowedTools is a tool whitelist. If empty, all tools are available.
+	// AllowedTools is a tool whitelist enforced at execution time: the
+	// request still lists every tool, exactly like the parent's, so the fork
+	// shares the parent's cached prefix; calls to other tools are refused.
+	// If empty, all tools may run.
 	AllowedTools []string
 	// OnMessage is an optional callback invoked for each message emitted by the fork.
 	OnMessage func(types.Message)
@@ -133,9 +137,6 @@ func runForkedAgent(ctx context.Context, eng QueryEngine, cfg ForkedAgentConfig,
 		return nil, fmt.Errorf("engine: forked agent: CacheSafeParams must not be nil")
 	}
 
-	// Build the ExcludeTools map from AllowedTools (inverse mapping).
-	excludeTools := buildExcludeTools(eng, cfg.AllowedTools)
-
 	// Combine context messages with prompt messages.
 	messages := make([]types.Message, 0, len(cfg.CacheSafeParams.ContextMessages)+len(cfg.PromptMessages))
 	messages = append(messages, cfg.CacheSafeParams.ContextMessages...)
@@ -153,8 +154,10 @@ func runForkedAgent(ctx context.Context, eng QueryEngine, cfg ForkedAgentConfig,
 		// it would break that shared cache prefix and send an extra, unlogged
 		// summary request. Over-long history fails the fork instead.
 		NoCompaction: true,
-		ExcludeTools: excludeTools,
-		Model:        cfg.CacheSafeParams.Model,
+		ToolFilter:   allowOnlyTools(cfg.AllowedTools),
+		// Forks run in the background with nobody to answer a prompt.
+		NonInteractivePermissions: true,
+		Model:                     cfg.CacheSafeParams.Model,
 	}
 
 	// Start the query.
@@ -208,39 +211,22 @@ func runForkedAgent(ctx context.Context, eng QueryEngine, cfg ForkedAgentConfig,
 	return collected, nil
 }
 
-// buildExcludeTools computes the ExcludeTools map from an AllowedTools whitelist.
-// If allowedTools is empty, returns nil (all tools allowed).
-// Otherwise, it queries the engine's registry to find all tools NOT in the whitelist.
-func buildExcludeTools(eng QueryEngine, allowedTools []string) map[string]bool {
-	if len(allowedTools) == 0 {
+// allowOnlyTools returns a QueryParams.ToolFilter that lets only the named
+// tools run (nil when allowed is empty: everything may run). Refusals name
+// the allowed tools so the model stops trying others instead of retrying.
+func allowOnlyTools(allowed []string) func(tools.Tool, tools.Input) (bool, string) {
+	if len(allowed) == 0 {
 		return nil
 	}
-
-	// Build the allowed set for O(1) lookup.
-	allowed := make(map[string]bool, len(allowedTools))
-	for _, name := range allowedTools {
-		allowed[name] = true
+	set := make(map[string]bool, len(allowed))
+	for _, name := range allowed {
+		set[name] = true
 	}
-
-	// We need access to the registry to get all tool names.
-	// Use type assertion to access the concrete implementation.
-	impl, ok := eng.(*engineImpl)
-	if !ok {
-		// If we can't access the registry, return nil (allow all).
-		return nil
-	}
-
-	// Build exclude map from tools NOT in the allowed set.
-	allTools := impl.registry.All()
-	exclude := make(map[string]bool)
-	for _, t := range allTools {
-		if !allowed[t.Name()] {
-			exclude[t.Name()] = true
+	reason := fmt.Sprintf("Not available in this background task. Only these tools can be used: %s.", strings.Join(allowed, ", "))
+	return func(t tools.Tool, _ tools.Input) (bool, string) {
+		if set[t.Name()] {
+			return true, ""
 		}
+		return false, reason
 	}
-
-	if len(exclude) == 0 {
-		return nil
-	}
-	return exclude
 }

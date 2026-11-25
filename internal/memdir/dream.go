@@ -140,7 +140,7 @@ Goals:
 Current MEMORY.md index:
 %s
 
-Use MemoryRead to inspect files, MemoryWrite/MemoryDelete to update. Be conservative — only change when clearly beneficial.`, MaxMemoryIndexLines, idx)
+Use MemoryRead to inspect files, MemoryWrite/MemoryDelete to update. Use ONLY these three tools: others may be listed but any call to them is refused. Be conservative — only change when clearly beneficial.`, MaxMemoryIndexLines, idx)
 }
 
 // logf reports a background failure through fn, dropping it when fn is nil.

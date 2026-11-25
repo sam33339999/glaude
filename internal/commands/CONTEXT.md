@@ -2,7 +2,7 @@
 package: commands
 import_path: internal/commands
 layer: cli
-generated_at: 2026-11-25T16:03:34Z
+generated_at: 2026-11-25T16:40:37Z
 source_files: [builtins.go, external.go, goal.go, loop.go, mcp.go, modelswitch.go, provider.go, registry.go, resume.go, setup.go, soul.go, terminal_setup.go, tier.go]
 ---
 

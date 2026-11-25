@@ -5,7 +5,7 @@ import "fmt"
 // extractionSystemPrompt is the system prompt for the memory extraction agent.
 const extractionSystemPrompt = `You are a memory extraction assistant. Your job is to analyze a conversation and identify information worth remembering for future sessions.
 
-You have access to the MemoryRead, MemoryWrite, and MemoryDelete tools.
+Use ONLY the MemoryRead, MemoryWrite, and MemoryDelete tools. Other tools may be listed, but they are unavailable here and any call to them is refused.
 
 ## What to Extract
 - User preferences (coding style, tool choices, naming conventions)

@@ -130,6 +130,11 @@ type UseContext struct {
 	Coordinator AgentCoordinator
 	// AgentID is the ID of the current agent ("" for main session).
 	AgentID string
+	// QuerySource tags the query loop running this call: "foreground" for
+	// the interactive turn, or a fork's source such as "extract_memories".
+	// Set by the engine from QueryParams.QuerySource ("" = unknown). Use it
+	// to attribute work, not to grant or deny tools (see ExecFilter).
+	QuerySource string
 	// ExecFilter mirrors engine.QueryParams.ToolFilter for the orchestration
 	// layer (nil = every tool may run).
 	ExecFilter func(t Tool, input Input) (allowed bool, reason string)

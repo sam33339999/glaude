@@ -65,7 +65,7 @@ func (e *engineImpl) runQueryLoop(ctx context.Context, params QueryParams, msgCh
 	// private copy of the tool-use context (never the caller's, which may be
 	// shared — e.g. the main loop's), created if the caller passed none so
 	// the switches fail closed.
-	if params.ToolFilter != nil || params.NonInteractivePermissions {
+	if params.ToolFilter != nil || params.NonInteractivePermissions || params.QuerySource != "" {
 		var c tools.UseContext
 		if params.ToolUseContext != nil {
 			c = *params.ToolUseContext
@@ -75,6 +75,7 @@ func (e *engineImpl) runQueryLoop(ctx context.Context, params QueryParams, msgCh
 		}
 		c.ExecFilter = params.ToolFilter
 		c.NonInteractivePermissions = params.NonInteractivePermissions
+		c.QuerySource = params.QuerySource
 		params.ToolUseContext = &c
 	}
 
