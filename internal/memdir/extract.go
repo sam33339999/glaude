@@ -109,12 +109,14 @@ func ExecuteExtractMemories(
 	// Throttle: run only once enough new conversation has piled up, and
 	// summarise just that part.
 	recent := hookCtx.Messages
+	ok := false
 	if cfg.Throttle != nil {
 		from, run := cfg.Throttle.begin(sessionID, hookCtx.Messages)
 		if !run {
 			return
 		}
-		defer cfg.Throttle.done()
+		// A failed run hands its messages back to the next one.
+		defer func() { cfg.Throttle.done(ok) }()
 		recent = hookCtx.Messages[from:]
 	}
 
@@ -149,15 +151,19 @@ func ExecuteExtractMemories(
 		CacheSafeParams: hookCtx.CacheParams,
 		QuerySource:     extractMemoriesQuerySource,
 		MaxTurns:        maxTurns,
-		AllowedTools:    []string{"MemoryRead", "MemoryWrite", "MemoryDelete"},
+		AllowedTools:    memoryToolNames,
 		OnUsage:         cfg.OnUsage,
 	}
 
 	// Run the forked agent. Errors are logged but not propagated —
 	// extraction is best-effort and must not affect the main session.
-	_, err := engine.RunForkedAgent(ctx, hookCtx.Engine, forkedCfg)
+	refused, err := runMemoryFork(ctx, hookCtx.Engine, forkedCfg)
+	ok = err == nil
 	if err != nil {
 		logf(cfg.Logf, "memdir: extract memories: %v", err)
+	}
+	if refused != nil {
+		logf(cfg.Logf, "memdir: extract memories: %v", refused)
 	}
 }
 
@@ -170,8 +176,9 @@ func hasMemoryWritesSince(messages []types.Message) bool {
 	for i := len(messages) - 1; i >= 0; i-- {
 		msg := messages[i]
 
-		// The last user message marks the turn boundary.
-		if msg.Role == types.RoleUser {
+		// The last real user message marks the turn boundary; tool_result
+		// messages are user-role too and sit inside the turn.
+		if msg.Role == types.RoleUser && !isToolResultOnly(msg) {
 			return false
 		}
 
@@ -187,10 +194,24 @@ func hasMemoryWritesSince(messages []types.Message) bool {
 	return false
 }
 
+// isToolResultOnly reports whether msg carries only tool_result blocks (the
+// engine's reply to tool calls, not something the user typed).
+func isToolResultOnly(msg types.Message) bool {
+	if len(msg.Content) == 0 {
+		return false
+	}
+	for _, b := range msg.Content {
+		if b.Type != types.ContentTypeToolResult {
+			return false
+		}
+	}
+	return true
+}
+
 // buildConversationSummary extracts a text summary of recent conversation turns.
 // It covers the user/assistant text of the last maxMessages messages, capped
 // at maxSummaryChars. When over the cap the newest messages are kept (they
-// are what extraction is about) and the oldest kept one is cut at its head.
+// are what extraction is about) and the oldest kept one keeps its tail.
 func buildConversationSummary(messages []types.Message, maxMessages int) string {
 	if len(messages) == 0 {
 		return ""
@@ -221,8 +242,9 @@ func buildConversationSummary(messages []types.Message, maxMessages int) string 
 
 		// Enforce the character limit.
 		if used+len(entry) > maxSummaryChars {
-			if remaining := maxSummaryChars - used; remaining > 0 {
-				entries = append(entries, textutil.TruncateBytes(entry, remaining)+"...\n\n")
+			const cut = "[...] "
+			if remaining := maxSummaryChars - used - len(cut); remaining > 0 {
+				entries = append(entries, cut+textutil.TailBytes(entry, remaining))
 			}
 			break
 		}

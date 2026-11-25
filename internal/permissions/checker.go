@@ -243,6 +243,12 @@ func (c *checker) canUseTool(
 				if t.IsReadOnly(input) {
 					return tools.PermissionResult{Behavior: tools.PermissionAllow}, nil
 				}
+				// A tool that always allows itself (memory tools: they only
+				// touch the user's own ~/.glaude) is not made stricter by
+				// acceptEdits than by default mode, where step 8 allows it.
+				if result, terr := t.CheckPermissions(input, tctx); terr == nil && result.Behavior == tools.PermissionAllow {
+					return result, nil
+				}
 			}
 		}
 		// Default to ask for non-read tools.

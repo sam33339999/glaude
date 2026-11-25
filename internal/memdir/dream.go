@@ -14,9 +14,11 @@ import (
 
 const (
 	autoDreamQuerySource = "auto_dream"
-	consolidateLockName  = ".consolidate-lock"
-	minHoursBetweenDream = 24
-	autoDreamMaxTurns    = 8
+	// manualDreamQuerySource tags /dream runs apart from the automatic ones.
+	manualDreamQuerySource = "manual_dream"
+	consolidateLockName    = ".consolidate-lock"
+	minHoursBetweenDream   = 24
+	autoDreamMaxTurns      = 8
 )
 
 // AutoDreamConfig configures background memory consolidation.
@@ -69,12 +71,16 @@ func ExecuteAutoDream(ctx context.Context, hookCtx *engine.StopHookContext, cfg 
 		CacheSafeParams: hookCtx.CacheParams,
 		QuerySource:     autoDreamQuerySource,
 		MaxTurns:        autoDreamMaxTurns,
-		AllowedTools:    []string{"MemoryRead", "MemoryWrite", "MemoryDelete"},
+		AllowedTools:    memoryToolNames,
 		OnUsage:         cfg.OnUsage,
 	}
 
-	if _, err := engine.RunForkedAgent(ctx, hookCtx.Engine, forkedCfg); err != nil {
+	refused, err := runMemoryFork(ctx, hookCtx.Engine, forkedCfg)
+	if err != nil {
 		logf(cfg.Logf, "memdir: auto dream: %v", err)
+	}
+	if refused != nil {
+		logf(cfg.Logf, "memdir: auto dream: %v", refused)
 	}
 }
 
@@ -89,7 +95,7 @@ func RunManualDream(ctx context.Context, eng engine.QueryEngine, cache *engine.C
 	}
 
 	prompt := buildDreamPrompt(store)
-	_, err := engine.RunForkedAgent(ctx, eng, engine.ForkedAgentConfig{
+	refused, err := runMemoryFork(ctx, eng, engine.ForkedAgentConfig{
 		PromptMessages: []types.Message{{
 			Role: types.RoleUser,
 			Content: []types.ContentBlock{{
@@ -98,11 +104,15 @@ func RunManualDream(ctx context.Context, eng engine.QueryEngine, cache *engine.C
 			}},
 		}},
 		CacheSafeParams: cache,
-		QuerySource:     autoDreamQuerySource,
+		QuerySource:     manualDreamQuerySource,
 		MaxTurns:        autoDreamMaxTurns,
-		AllowedTools:    []string{"MemoryRead", "MemoryWrite", "MemoryDelete"},
+		AllowedTools:    memoryToolNames,
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	// /dream reports success otherwise, though nothing was written.
+	return refused
 }
 
 func shouldRunAutoDream(memoryDir string) bool {
@@ -122,7 +132,17 @@ func touchConsolidateLock(lockPath string) error {
 	if err != nil {
 		return fmt.Errorf("create consolidate lock: %w", err)
 	}
-	return f.Close()
+	if err := f.Close(); err != nil {
+		return err
+	}
+	// Opening an existing file leaves its mtime alone, and the mtime is the
+	// "last dream" time shouldRunAutoDream reads: set it explicitly, or once
+	// the lock is a day old dream runs after every turn.
+	now := time.Now()
+	if err := os.Chtimes(lockPath, now, now); err != nil {
+		return fmt.Errorf("touch consolidate lock: %w", err)
+	}
+	return nil
 }
 
 func buildDreamPrompt(store *MemoryStore) string {

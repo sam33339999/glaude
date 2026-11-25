@@ -2,7 +2,7 @@
 package: tui
 import_path: internal/tui
 layer: tui
-generated_at: 2026-11-25T16:47:52Z
+generated_at: 2026-11-25T17:04:06Z
 source_files: [agentcolors.go, autorun.go, bashmode.go, btw.go, clipboard_paste.go, cmds.go, codeblock.go, completion.go, coordinator.go, init.go, input.go, keys.go, memory_events.go, memstat.go, memstat_darwin.go, memstat_linux.go, memstat_other.go, memstat_windows.go, messagelist.go, messages.go, model.go, modelchooser.go, modelpicker.go, paste.go, paste_input.go, permissions.go, provider_dialog.go, providerwizard.go, providerwizard_view.go, rendercache.go, resumepicker.go, scrollview.go, selection.go, setup_dialog.go, setupwizard.go, setupwizard_view.go, spinner.go, statusbar.go, styles.go, textwidth.go, theme.go, tier_dialog.go, tierpicker.go, toolview.go, turntiming.go, update.go, view.go, welcome.go]
 ---
 

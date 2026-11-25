@@ -39,7 +39,7 @@ memdir: extract memories: engine: forked agent: engine: stream: API error 400:
 
 **粗估**：快取沒命中時，每輪 input token 大約是原本的 2～4 倍，對話越長越明顯。這是推算，**沒有實測**，處理前應先量一次（`--debug` 或 provider 的帳單／usage）。
 
-`auto_dream` 也用同樣的 CacheParams，但有鎖檔節流（`minHoursBetweenDream = 24`），影響小。
+`auto_dream` 也用同樣的 CacheParams，但有鎖檔節流（`minHoursBetweenDream = 24`），影響小。（2026-11-26 更正：這個節流原本沒有作用。`touchConsolidateLock` 不會更新已存在鎖檔的 mtime，所以鎖檔一旦超過 24 小時，之後每輪都會跑 dream。已在 review 第二輪修正。）
 
 ## 緩解（使用者側，立即可用）
 
@@ -158,5 +158,15 @@ PR 4 實作的內容：
 
 延後或待決定：
 - **送整段歷史還是只送新增部分**：PR 2 之後 fork 的 request 前綴跟主對話一致，理論上能命中快取，但**還沒有實測**。目前保留送整段歷史，只靠節流把次數降下來。用 turn-timings 量到 `extract_memories` 的 cache read 佔總 prompt 的比例後再決定：≥ 80% 就維持現狀，否則改成只送新增部分（`ContextMessages` 留空，只送 extraction prompt）。
-- **compaction 前補跑一次萃取**：engine 目前沒有 compaction 前的同步 hook，要新增一個擴充點，所以延後。在節流的設計下，compaction 最多會漏掉一次門檻內的新內容（< 2000 bytes 或 < 5 輪）。
+- **compaction 前補跑一次萃取**：engine 目前沒有 compaction 前的同步 hook，要新增一個擴充點，所以延後。游標旁邊會存「游標前一則訊息」的指紋，compaction 或 /clear 之後就算歷史又長回超過游標，也能偵測到並歸零。代價有兩個：compaction 前還沒萃取、門檻內的新內容會漏掉（< 2000 bytes 或 < 5 輪）；compaction 的摘要會被當成新內容再萃取一次。
 - session 結束時補跑、`/dream` 記用量（`manual_dream`）、紀錄路徑改用 `opts.HomeDir`、fork 紀錄和前景回合的關聯鍵：同 PR 1 的已知缺口。
+
+### Review 第二輪（PR 2–4）修正
+
+- **acceptEdits 模式下，萃取和 dream 完全寫不進記憶，也不會顯示**：checker 在 acceptEdits 分支會先回 Ask，fork 的 NonInteractive 再把 Ask 轉成 Deny。修法：acceptEdits 分支先看工具自己的 `CheckPermissions`，回 Allow 就放行（目前只有 memory 工具會這樣），前景在 acceptEdits 下也不會再為 MemoryWrite 跳詢問。另外新增 `runMemoryFork`：如果 Memory* 工具回傳的錯誤比工具自己發的錯誤事件多，補發一個錯誤事件，plan 模式或 deny 規則擋下時也看得到；`/dream` 在這種情況會回報失敗，不再回報成功。
+- **`hasMemoryWritesSince` 在實際對話裡永遠回 false**：tool_result 也是 user role，往回掃到它就停了。改成跳過只含 tool_result 的訊息。
+- **compaction 後游標可能指錯位置**：加上指紋偵測（見上）。
+- **fork 失敗時，游標已經往前移，那段內容就丟了**：改成 `done(ok)`，失敗時把游標退回原位（前提是游標在這段期間沒被重設或 captured 移動過）。
+- **dream 的 24 小時節流沒有作用**：`touchConsolidateLock` 改用 `Chtimes` 更新 mtime。
+- **Windows**：用 rename 取代正被讀取的檔案時，可能出現 access denied 或 sharing violation，改成短暫重試（未在 Windows 上實測）。
+- 小問題：截斷時保留最舊那則的尾端，並且不超過上限；`/dream` 的來源標記改成 `manual_dream`。
