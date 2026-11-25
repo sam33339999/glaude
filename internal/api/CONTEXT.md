@@ -2,7 +2,7 @@
 package: api
 import_path: internal/api
 layer: services
-generated_at: 2026-11-25T15:40:49Z
+generated_at: 2026-11-25T16:03:34Z
 source_files: [accumulate.go, client.go, debug_logger.go, errors.go, factory.go, json.go, listmodels.go, openai_client.go, openai_images.go, openai_stream.go, openai_tool_schema.go, openai_types.go, ratelimit.go, retry.go, stream.go, usage.go]
 ---
 
@@ -128,7 +128,7 @@ type StreamReader interface {
 - `mockClient` in `test/integration/engine_e2e_test.go`
 
 **Exported type references (files that use types from this package):**
-- `APIError` → `internal/engine/engine_test.go` (test), `internal/engine/query.go`, `internal/engine/retry_wiring_test.go` (test), `internal/engine/tiers_test.go` (test), `internal/engine/tool_images_test.go` (test)
+- `APIError` → `internal/engine/engine_test.go` (test), `internal/engine/forked_agent_usage_test.go` (test), `internal/engine/query.go`, `internal/engine/retry_wiring_test.go` (test), `internal/engine/tiers_test.go` (test) + 1 more
 - `Accumulator` → `internal/engine/query.go`
 - `Client` → `internal/bootstrap/modelswitch.go`, `internal/bootstrap/provider.go`, `internal/bootstrap/provider_test.go` (test), `internal/bootstrap/setup.go`, `internal/bootstrap/setup_test.go` (test) + 12 more
 - `ClientConfig` → `internal/bootstrap/provider.go`, `internal/bootstrap/setup.go`, `internal/bootstrap/setup_test.go` (test), `internal/bootstrap/tiers.go`, `internal/bootstrap/wire.go`

@@ -2,7 +2,7 @@
 package: textutil
 import_path: internal/textutil
 layer: infra
-generated_at: 2026-11-25T15:40:49Z
+generated_at: 2026-11-25T16:03:34Z
 source_files: [truncate.go]
 ---
 

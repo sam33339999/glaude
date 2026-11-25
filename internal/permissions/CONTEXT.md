@@ -2,7 +2,7 @@
 package: permissions
 import_path: internal/permissions
 layer: services
-generated_at: 2026-11-25T15:40:49Z
+generated_at: 2026-11-25T16:03:34Z
 source_files: [ask.go, checker.go, denial.go, filesystem.go, persist.go]
 ---
 

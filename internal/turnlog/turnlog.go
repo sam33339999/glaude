@@ -31,7 +31,9 @@ type Record struct {
 	Cwd         string    `json:"cwd"`
 	Model       string    `json:"model"`
 	APIRequests int       `json:"api_requests"`
-	ToolCalls   int       `json:"tool_calls"`
+	// ToolCalls counts tool_use blocks the model started (foreground, TUI)
+	// or tool results produced (forks, including refused or filtered calls).
+	ToolCalls int `json:"tool_calls"`
 	// InputTokens excludes cache hits (Anthropic semantics); the full prompt
 	// size is InputTokens + CacheReadTokens + CacheCreationTokens.
 	InputTokens         int `json:"input_tokens"`

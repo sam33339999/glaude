@@ -2,7 +2,7 @@
 package: transcript
 import_path: internal/transcript
 layer: unknown
-generated_at: 2026-11-25T15:40:49Z
+generated_at: 2026-11-25T16:03:34Z
 source_files: [recorder.go]
 ---
 

@@ -2,7 +2,6 @@ package engine
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"testing"
 
@@ -77,7 +76,9 @@ func TestRunForkedAgent_OnUsageReportsError(t *testing.T) {
 
 	client := &mockClient{
 		streamFn: func(_ context.Context, _ *api.MessageRequest) (api.StreamReader, error) {
-			return nil, errors.New("boom")
+			// Non-retryable: a plain error counts as a network error and
+			// WithRetry would back off ~3 minutes before giving up.
+			return nil, &api.APIError{StatusCode: 400, Message: "bad request"}
 		},
 	}
 	eng := New(Config{Client: client, Registry: tools.NewRegistry(), Model: "claude-test"})
@@ -110,4 +111,55 @@ func TestRunForkedAgent_OnUsageReportsInterrupted(t *testing.T) {
 	if len(got) != 1 || got[0].Outcome != "interrupted" {
 		t.Fatalf("usage = %+v, want one interrupted record", got)
 	}
+}
+
+func TestRunForkedAgent_OnUsagePrefersCacheParamsModel(t *testing.T) {
+	t.Parallel()
+
+	eng := New(Config{Client: &mockClient{
+		streamFn: func(_ context.Context, _ *api.MessageRequest) (api.StreamReader, error) {
+			return newStaticReader(buildEndTurnEvents("ok")...), nil
+		},
+	}, Registry: tools.NewRegistry(), Model: "claude-test"})
+
+	var got []ForkUsage
+	cfg := forkUsageCfg(func(u ForkUsage) { got = append(got, u) })
+	cfg.CacheSafeParams.Model = "fork-model"
+	if _, err := RunForkedAgent(context.Background(), eng, cfg); err != nil {
+		t.Fatalf("RunForkedAgent: %v", err)
+	}
+	if len(got) != 1 || got[0].Model != "fork-model" {
+		t.Fatalf("usage = %+v, want model fork-model", got)
+	}
+}
+
+func TestRunForkedAgent_DisablesCompaction(t *testing.T) {
+	t.Parallel()
+
+	var params QueryParams
+	eng := &captureEngine{
+		QueryEngine: New(Config{Client: &mockClient{
+			streamFn: func(_ context.Context, _ *api.MessageRequest) (api.StreamReader, error) {
+				return newStaticReader(buildEndTurnEvents("ok")...), nil
+			},
+		}, Registry: tools.NewRegistry(), Model: "claude-test"}),
+		onQuery: func(p QueryParams) { params = p },
+	}
+	if _, err := RunForkedAgent(context.Background(), eng, forkUsageCfg(nil)); err != nil {
+		t.Fatalf("RunForkedAgent: %v", err)
+	}
+	if !params.NoCompaction {
+		t.Error("forks must not auto-compact: the summary request is unlogged and breaks the shared prefix")
+	}
+}
+
+// captureEngine records the QueryParams a fork sends, then delegates.
+type captureEngine struct {
+	QueryEngine
+	onQuery func(QueryParams)
+}
+
+func (c *captureEngine) Query(ctx context.Context, p QueryParams) (<-chan Msg, error) {
+	c.onQuery(p)
+	return c.QueryEngine.Query(ctx, p)
 }

@@ -113,7 +113,8 @@ func RunForkedAgent(ctx context.Context, eng QueryEngine, cfg ForkedAgentConfig)
 	switch {
 	case err == nil:
 		usage.Outcome = "done"
-	case errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded):
+	// ctx first: a stream error raised by the cancellation may not wrap it.
+	case ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded):
 		usage.Outcome = "interrupted"
 	default:
 		usage.Outcome = "error"
@@ -148,8 +149,12 @@ func runForkedAgent(ctx context.Context, eng QueryEngine, cfg ForkedAgentConfig,
 		QuerySource:    cfg.QuerySource,
 		MaxTurns:       cfg.MaxTurns,
 		NoWriteBack:    true,
-		ExcludeTools:   excludeTools,
-		Model:          cfg.CacheSafeParams.Model,
+		// A fork's prompt is the parent's prefix plus a short task; compacting
+		// it would break that shared cache prefix and send an extra, unlogged
+		// summary request. Over-long history fails the fork instead.
+		NoCompaction: true,
+		ExcludeTools: excludeTools,
+		Model:        cfg.CacheSafeParams.Model,
 	}
 
 	// Start the query.

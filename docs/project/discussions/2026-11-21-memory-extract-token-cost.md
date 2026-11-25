@@ -106,6 +106,14 @@ memdir: extract memories: engine: forked agent: engine: stream: API error 400:
 - `ExtractMemoriesConfig`／`AutoDreamConfig` 加 `OnUsage` 回呼，由 bootstrap 接上。
 - `turnRecord` 加 `query_source` 欄位（前景是 `foreground`，舊資料沒有這個欄位時視為 foreground）。fork 的紀錄寫進同一個 `turn-timings.jsonl`。
 - 在 rs-stream 跑一段 session，留下**基準線**。
+- fork 一律設 `NoCompaction: true`。fork 內的 compaction 會打一次不會被記錄的摘要請求，還會破壞跟主對話共用的前綴；歷史太長時讓 fork 直接失敗。
+- **量測的已知缺口**（review 時發現，解讀數據時要記得）：
+  - 只有 TUI session 會留下紀錄：`-p` 模式下 process 會在背景 fork 跑完前就退出。
+  - fork 還沒跑完就離開 TUI，那次已經計費，但沒有紀錄，所以數字會偏低。
+  - 串流讀到一半失敗的那一次，usage 不會計入。
+  - `tool_calls` 的定義前景和 fork 不同：前景數模型開始的 tool_use，fork 數產生的 tool result（包含被擋下的）。見 `turnlog.Record` 的註解。
+  - fork 的紀錄跟觸發它的前景回合之間沒有關聯鍵，只能用 session_id 加時間去對。PR 4 需要逐輪比較時再加 turn 序號。
+  - 後續再處理：`/dream`（`RunManualDream`）還沒接上，接的時候要給它獨立的 source（`manual_dream`）；紀錄路徑改從 `opts.HomeDir` 推導（目前跟 TUI 一樣用 `os.UserHomeDir()`）。
 
 ### PR 2：相同工具清單加執行階段過濾
 - `ForkedAgentConfig.AllowedTools` 改成產生 `ToolFilter`，不再產生 `ExcludeTools`，工具清單維持跟主對話相同。被擋下的工具回傳明確的原因。

@@ -25,6 +25,9 @@ func readLines(t *testing.T, path string) []map[string]any {
 		}
 		out = append(out, row)
 	}
+	if err := sc.Err(); err != nil {
+		t.Fatalf("scan: %v", err)
+	}
 	return out
 }
 
@@ -37,6 +40,9 @@ func TestAppend_QuerySourceOmittedWhenEmpty(t *testing.T) {
 		t.Fatal(err)
 	}
 	rows := readLines(t, path)
+	if len(rows) != 2 {
+		t.Fatalf("got %d lines, want 2", len(rows))
+	}
 	if _, ok := rows[0]["query_source"]; ok {
 		t.Errorf("empty query_source should be omitted: %v", rows[0])
 	}
