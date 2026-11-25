@@ -2,13 +2,13 @@
 package: tui
 import_path: internal/tui
 layer: tui
-generated_at: 2026-11-25T16:40:37Z
-source_files: [agentcolors.go, autorun.go, bashmode.go, btw.go, clipboard_paste.go, cmds.go, codeblock.go, completion.go, coordinator.go, init.go, input.go, keys.go, memstat.go, memstat_darwin.go, memstat_linux.go, memstat_other.go, memstat_windows.go, messagelist.go, messages.go, model.go, modelchooser.go, modelpicker.go, paste.go, paste_input.go, permissions.go, provider_dialog.go, providerwizard.go, providerwizard_view.go, rendercache.go, resumepicker.go, scrollview.go, selection.go, setup_dialog.go, setupwizard.go, setupwizard_view.go, spinner.go, statusbar.go, styles.go, textwidth.go, theme.go, tier_dialog.go, tierpicker.go, toolview.go, turntiming.go, update.go, view.go, welcome.go]
+generated_at: 2026-11-25T16:45:14Z
+source_files: [agentcolors.go, autorun.go, bashmode.go, btw.go, clipboard_paste.go, cmds.go, codeblock.go, completion.go, coordinator.go, init.go, input.go, keys.go, memory_events.go, memstat.go, memstat_darwin.go, memstat_linux.go, memstat_other.go, memstat_windows.go, messagelist.go, messages.go, model.go, modelchooser.go, modelpicker.go, paste.go, paste_input.go, permissions.go, provider_dialog.go, providerwizard.go, providerwizard_view.go, rendercache.go, resumepicker.go, scrollview.go, selection.go, setup_dialog.go, setupwizard.go, setupwizard_view.go, spinner.go, statusbar.go, styles.go, textwidth.go, theme.go, tier_dialog.go, tierpicker.go, toolview.go, turntiming.go, update.go, view.go, welcome.go]
 ---
 
 # internal/tui
 
-> Layer: **TUI** · Files: 47 · Interfaces: 0 · Structs: 38 · Functions: 6
+> Layer: **TUI** · Files: 48 · Interfaces: 0 · Structs: 39 · Functions: 6
 
 ## Structs
 
@@ -16,7 +16,7 @@ source_files: [agentcolors.go, autorun.go, bashmode.go, btw.go, clipboard_paste.
 - **AgentProgressMsg** — 3 fields: TaskID, Activity, Detail
 - **AgentStatusMsg** — 5 fields: TaskID, Status, Description, Result, Summary
 - **AgentTaskState** — 12 fields: ID, Name, AgentType, Description, Status, StartTime, ElapsedMs, OutputTokens, ...
-- **AppModel** — 103 fields
+- **AppModel** — 105 fields
 - **CommandResultMsg** — 2 fields: Text, IsError
 - **CompactDoneMsg** — 1 fields: Summary
 - **CoordinatorPanel** — 3 fields: Tasks, SelectedIndex, TaskOrder
@@ -26,6 +26,7 @@ source_files: [agentcolors.go, autorun.go, bashmode.go, btw.go, clipboard_paste.
 - **InputSubmittedMsg** — 1 fields: Text
 - **MCPStatusMsg** — 1 fields: Text
 - **MemdirLoadedMsg** — 2 fields: Paths, ScopedFiles
+- **MemoryEventMsg** — 1 fields: Event
 - **MessageLookups** — 4 fields: ToolUseToResult, ResolvedToolUseIDs, ErroredToolUseIDs, InProgressToolUseIDs
 - **PermissionDialog** — 8 fields
 - **PermissionRequestMsg** — 8 fields: RequestID, ToolName, ToolUseID, Message, Input, ProjectPath, FromCodeMode, RespFn

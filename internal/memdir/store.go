@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 )
@@ -25,9 +26,16 @@ const MaxMemoryIndexLines = 200
 const MaxMemoryIndexBytes = 25_000
 
 // MemoryStore manages reading and writing memory files for a project.
+//
+// Writes, deletes and index rebuilds are serialised (in-process mutex plus a
+// cross-process file lock, see withLock) and files are replaced atomically,
+// so concurrent writers — the main loop, background forks, other glaude
+// processes on the same project — cannot corrupt MEMORY.md or each other.
+// A MemoryStore must not be copied after first use.
 type MemoryStore struct {
 	// memoryDir is the absolute path to the project's memory directory.
 	memoryDir string
+	mu        sync.Mutex
 }
 
 // MemoryPathOptions configures how the auto-memory directory is resolved.
@@ -70,10 +78,10 @@ func (ms *MemoryStore) EnsureDir() error {
 // WriteMemory creates or updates a memory file.
 // The filename is derived from the title if not specified.
 func (ms *MemoryStore) WriteMemory(mf *MemoryFile) error {
-	if err := ms.EnsureDir(); err != nil {
-		return fmt.Errorf("memdir: ensure dir: %w", err)
-	}
+	return ms.withLock(func() error { return ms.writeMemoryLocked(mf) })
+}
 
+func (ms *MemoryStore) writeMemoryLocked(mf *MemoryFile) error {
 	if mf.Path == "" {
 		mf.Path = filepath.Join(ms.memoryDir, slugify(mf.Header.Title)+".md")
 	}
@@ -84,7 +92,34 @@ func (ms *MemoryStore) WriteMemory(mf *MemoryFile) error {
 	}
 
 	content := FormatMemoryFile(mf)
-	return os.WriteFile(mf.Path, []byte(content), 0o644)
+	return writeFileAtomic(mf.Path, []byte(content), 0o644)
+}
+
+// SaveMemory writes mf and rebuilds the index under one lock, so no other
+// writer can slip in between. indexErr reports a failed rebuild after the
+// memory itself was saved (err == nil).
+func (ms *MemoryStore) SaveMemory(mf *MemoryFile) (indexErr, err error) {
+	err = ms.withLock(func() error {
+		if werr := ms.writeMemoryLocked(mf); werr != nil {
+			return werr
+		}
+		indexErr = ms.buildIndexLocked()
+		return nil
+	})
+	return indexErr, err
+}
+
+// RemoveMemory deletes a memory and rebuilds the index under one lock;
+// indexErr is as for SaveMemory.
+func (ms *MemoryStore) RemoveMemory(name string) (indexErr, err error) {
+	err = ms.withLock(func() error {
+		if derr := ms.deleteMemoryLocked(name); derr != nil {
+			return derr
+		}
+		indexErr = ms.buildIndexLocked()
+		return nil
+	})
+	return indexErr, err
 }
 
 // ReadMemory reads a single memory file by name (without .md extension).
@@ -133,6 +168,10 @@ func (ms *MemoryStore) ListMemories() ([]*MemoryFile, error) {
 
 // DeleteMemory removes a memory file by name (without .md extension).
 func (ms *MemoryStore) DeleteMemory(name string) error {
+	return ms.withLock(func() error { return ms.deleteMemoryLocked(name) })
+}
+
+func (ms *MemoryStore) deleteMemoryLocked(name string) error {
 	path := filepath.Join(ms.memoryDir, name+".md")
 	err := os.Remove(path)
 	if err != nil && !os.IsNotExist(err) {
@@ -146,6 +185,10 @@ func (ms *MemoryStore) DeleteMemory(name string) error {
 // the LLM can directly identify file names for subsequent read/edit operations,
 // consistent with the original Claude Code (TypeScript) implementation.
 func (ms *MemoryStore) BuildIndex() error {
+	return ms.withLock(ms.buildIndexLocked)
+}
+
+func (ms *MemoryStore) buildIndexLocked() error {
 	memories, err := ms.ListMemories()
 	if err != nil {
 		return fmt.Errorf("memdir: build index: %w", err)
@@ -198,7 +241,7 @@ func (ms *MemoryStore) BuildIndex() error {
 	indexContent = truncateUTF8Safe(indexContent, MaxMemoryIndexBytes)
 
 	indexPath := filepath.Join(ms.memoryDir, MemoryFileName)
-	return os.WriteFile(indexPath, []byte(indexContent), 0o644)
+	return writeFileAtomic(indexPath, []byte(indexContent), 0o644)
 }
 
 // LoadMemoryIndex reads and returns the content of the MEMORY.md index file.

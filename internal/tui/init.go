@@ -87,6 +87,10 @@ func (m AppModel) Init() tea.Cmd {
 	if m.questionAskCh != nil {
 		cmds = append(cmds, listenForQuestionRequest(m.questionAskCh, m.questionRespCh))
 	}
+	// Background memory writes (extraction / dream forks) and failures.
+	if m.memEventCh != nil {
+		cmds = append(cmds, listenForMemoryEvent(m.memEventCh))
+	}
 	// Start listening for agent events if coordinator is enabled.
 	if m.agentEventCh != nil {
 		cmds = append(cmds, listenForAgentEvent(m.agentEventCh))

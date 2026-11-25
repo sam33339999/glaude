@@ -273,6 +273,10 @@ type AppModel struct {
 	permRespCh chan<- permissions.AskResponse
 
 	// --- Agent event channel (coordinator → TUI) ---
+	// memEventCh receives memory tool events (memEvents is its sink, passed
+	// to queries via UseContext.MemoryEvents and inherited by forks).
+	memEventCh chan tools.MemoryEvent
+	memEvents  tools.MemoryEventSink
 	// agentEventCh receives sub-agent progress and status events.
 	// May be nil if coordinator mode is not enabled.
 	agentEventCh <-chan coordinator.Event
@@ -369,6 +373,8 @@ func newAppModel(
 		msgQueue:       mq,
 		queryGuard:     qg,
 	}
+	m.memEventCh = make(chan tools.MemoryEvent, memoryEventBuffer)
+	m.memEvents = memoryEventSink{ch: m.memEventCh}
 	// Surface config.toml problems inside the TUI: stderr output is hidden by
 	// the alt screen, and a broken file silently unbinds every tier.
 	if tiers != nil {

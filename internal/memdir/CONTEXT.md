@@ -2,13 +2,13 @@
 package: memdir
 import_path: internal/memdir
 layer: services
-generated_at: 2026-11-25T16:40:37Z
-source_files: [discover.go, dream.go, extract.go, extract_prompt.go, freshness.go, gate.go, include.go, loader.go, quick_memory.go, relevance.go, scope.go, secret_scanner.go, session_memory.go, status.go, store.go, types.go]
+generated_at: 2026-11-25T16:45:14Z
+source_files: [discover.go, dream.go, extract.go, extract_prompt.go, freshness.go, gate.go, include.go, loader.go, lock.go, lock_other.go, lock_unix.go, lock_windows.go, quick_memory.go, relevance.go, scope.go, secret_scanner.go, session_memory.go, status.go, store.go, types.go]
 ---
 
 # internal/memdir
 
-> Layer: **Services** · Files: 16 · Interfaces: 0 · Structs: 10 · Functions: 34
+> Layer: **Services** · Files: 20 · Interfaces: 0 · Structs: 10 · Functions: 34
 
 ## Structs
 
@@ -18,7 +18,7 @@ source_files: [discover.go, dream.go, extract.go, extract_prompt.go, freshness.g
 - **MemoryFile** — 3 fields: Header, Body, Path
 - **MemoryHeader** — 6 fields: Title, Type, CreatedAt, UpdatedAt, Tags, Source
 - **MemoryPathOptions** — 1 fields: AutoMemoryDirectory
-- **MemoryStore** — 1 fields
+- **MemoryStore** — 2 fields
 - **RelevanceConfig** — 3 fields: MaxMemoriesPerTurn, MaxMemoryBytes, MaxSessionBytes
 - **RelevantMemory** — 4 fields: Path, Title, Content, FreshnessNote
 - **SessionMemoryConfig** — 2 fields: SessionID, HomeDir

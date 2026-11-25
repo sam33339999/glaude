@@ -1,6 +1,6 @@
 ---
 type: auto-generated-index
-generated_at: 2026-11-25T16:40:37Z
+generated_at: 2026-11-25T16:45:14Z
 package_count: 48
 ---
 
@@ -38,7 +38,7 @@ package_count: 48
 | `internal/permissions` | Services | Checker(3m), HookAwareChecker(2m), AskRequest, AskResponse, CheckerConfig | [CONTEXT](../../internal/permissions/CONTEXT.md) |
 | `internal/coordinator` | Core | Coordinator(8m), AgentUsage, Config, Event, MCPClientInfo | [CONTEXT](../../internal/coordinator/CONTEXT.md) |
 | `internal/engine` | Core | QueryEngine(7m), BudgetTracker, CacheSafeParams, Config, ForkUsage | [CONTEXT](../../internal/engine/CONTEXT.md) |
-| `internal/tools` | Tools | AgentCoordinator(9m), MCPToolInfo(1m), PathTool(1m), PermissionContext(1m), SearchOrReadTool(1m), ... | [CONTEXT](../../internal/tools/CONTEXT.md) |
+| `internal/tools` | Tools | AgentCoordinator(9m), MCPToolInfo(1m), MemoryEventSink(1m), PathTool(1m), PermissionContext(1m), ... | [CONTEXT](../../internal/tools/CONTEXT.md) |
 | `internal/tools/agent` | Tools | AgentInput, AgentOutput, ExternalAgentInfo, GetAgentStatusInput, GetAgentStatusOutput | [CONTEXT](../../internal/tools/agent/CONTEXT.md) |
 | `internal/tools/codemode` | Tools | - | [CONTEXT](../../internal/tools/codemode/CONTEXT.md) |
 | `internal/tools/fileops` | Tools | FileEditInput, FileReadInput, FileReadOutput, FileWriteInput, GlobInput | [CONTEXT](../../internal/tools/fileops/CONTEXT.md) |

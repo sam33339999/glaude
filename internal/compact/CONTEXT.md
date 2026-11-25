@@ -2,7 +2,7 @@
 package: compact
 import_path: internal/compact
 layer: services
-generated_at: 2026-11-25T16:40:37Z
+generated_at: 2026-11-25T16:45:14Z
 source_files: [auto.go, compact.go, images.go, micro.go, snip.go, target.go, window.go]
 ---
 

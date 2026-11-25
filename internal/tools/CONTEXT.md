@@ -2,13 +2,13 @@
 package: tools
 import_path: internal/tools
 layer: tools
-generated_at: 2026-11-25T16:40:37Z
+generated_at: 2026-11-25T16:45:14Z
 source_files: [base.go, registry.go, tool.go]
 ---
 
 # internal/tools
 
-> Layer: **Tools** · Files: 3 · Interfaces: 6 · Structs: 11 · Functions: 3
+> Layer: **Tools** · Files: 3 · Interfaces: 7 · Structs: 12 · Functions: 3
 
 ## Interfaces
 
@@ -35,6 +35,15 @@ type AgentCoordinator interface {
 ```go
 type MCPToolInfo interface {
     MCPInfo() MCPInfo
+}
+```
+
+### MemoryEventSink (1 methods)
+> MemoryEventSink receives MemoryEvents. Implementations must not block:
+
+```go
+type MemoryEventSink interface {
+    MemoryEvent(MemoryEvent)
 }
 ```
 
@@ -98,12 +107,13 @@ type Tool interface {
 - **BaseTool**
 - **InputSchema** — 3 fields: Type, Properties, Required
 - **MCPInfo** — 2 fields: ServerName, ToolName
+- **MemoryEvent** — 5 fields: Op, Name, QuerySource, Err, Warning
 - **PermissionResult** — 3 fields: Behavior, Reason, AlwaysInCodeMode
 - **Registry** — 4 fields
 - **Result** — 4 fields: Content, HookStopReason, IsError, ContextModifier
 - **SearchOrReadResult** — 3 fields: IsSearch, IsRead, Path
 - **SnapshotSlot** — 2 fields
-- **UseContext** — 15 fields: Ctx, AbortCh, PermCtx, Coordinator, AgentID, QuerySource, ExecFilter, NonInteractivePermissions, ...
+- **UseContext** — 16 fields: Ctx, AbortCh, PermCtx, Coordinator, AgentID, QuerySource, ExecFilter, NonInteractivePermissions, ...
 - **ValidationResult** — 2 fields: OK, Reason
 
 ## Function Types
@@ -141,6 +151,8 @@ type Tool interface {
 - `InputSchema` → `internal/bootstrap/wire_fork_test.go` (test), `internal/codemode/catalog_test.go` (test), `internal/engine/orchestration_test.go` (test), `internal/mcp/adapter.go`, `internal/permissions/checker_test.go` (test) + 21 more
 - `MCPInfo` → `internal/mcp/adapter.go`
 - `MCPToolInfo` → `internal/mcp/adapter.go`, `internal/tools/mcp/mcp_test.go` (test)
+- `MemoryEvent` → `internal/tools/memory/events_test.go` (test), `internal/tools/memory/memory.go`, `internal/tui/memory_events.go`, `internal/tui/memory_events_test.go` (test), `internal/tui/model.go`
+- `MemoryEventSink` → `internal/tui/memory_events.go`, `internal/tui/model.go`
 - `OnProgressFn` → `internal/bootstrap/wire_fork_test.go` (test), `internal/codemode/catalog_test.go` (test), `internal/engine/btw_test.go` (test), `internal/engine/forked_agent_test.go` (test), `internal/engine/orchestration_test.go` (test) + 24 more
 - `PathTool` → `internal/permissions/checker.go`, `internal/permissions/persist.go`, `internal/tools/fileops/fileedit.go`, `internal/tools/fileops/fileread.go`, `internal/tools/fileops/filewrite.go` + 1 more
 - `PermissionContext` → `internal/bootstrap/wire_fork_test.go` (test), `internal/codemode/catalog_test.go` (test), `internal/engine/compaction.go`, `internal/engine/orchestration_test.go` (test), `internal/mcp/adapter.go` + 22 more
@@ -149,7 +161,7 @@ type Tool interface {
 - `Result` → `internal/bootstrap/wire_fork_test.go` (test), `internal/codemode/catalog_test.go` (test), `internal/engine/btw_test.go` (test), `internal/engine/forked_agent_test.go` (test), `internal/engine/orchestration_test.go` (test) + 26 more
 - `SnapshotSlot` → `internal/engine/btw_test.go` (test), `internal/tui/btw_test.go` (test), `internal/tui/cmds.go`, `internal/tui/model.go`
 - `Tool` → `internal/bootstrap/wire_fork_test.go` (test), `internal/engine/btw_test.go` (test), `internal/engine/engine.go`, `internal/engine/forked_agent.go`, `internal/engine/orchestration_test.go` (test) + 45 more
-- `UseContext` → `internal/bootstrap/acp.go`, `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/mcp.go`, `internal/bootstrap/mcp_connect_test.go` (test), `internal/bootstrap/run.go` + 70 more
+- `UseContext` → `internal/bootstrap/acp.go`, `internal/bootstrap/acp_integration_test.go` (test), `internal/bootstrap/mcp.go`, `internal/bootstrap/mcp_connect_test.go` (test), `internal/bootstrap/run.go` + 71 more
 - `ValidationResult` → `internal/engine/orchestration_test.go` (test), `internal/mcp/adapter.go`, `internal/permissions/checker_test.go` (test), `internal/tools/fileops/fileread.go`, `internal/tools/fileops/glob.go` + 5 more
 
 ## Dependencies

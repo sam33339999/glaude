@@ -2,7 +2,7 @@
 package: acpclient
 import_path: internal/acpclient
 layer: services
-generated_at: 2026-11-25T16:40:37Z
+generated_at: 2026-11-25T16:45:14Z
 source_files: [client.go, manager.go, permission.go, proc.go, spec.go]
 ---
 
