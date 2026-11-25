@@ -35,6 +35,7 @@ import (
 	"github.com/tunsuy/glaude/pkg/types"
 
 	"github.com/tunsuy/glaude/internal/textutil"
+	"github.com/tunsuy/glaude/internal/turnlog"
 )
 
 // P1-F: Compile-time interface assertions for AppContainer field types.
@@ -515,6 +516,37 @@ func buildToolHooks(settings *config.LayeredSettings, opts ContainerOptions, sto
 	return hooks.NewDispatcher(cfg)
 }
 
+// logForkUsage returns a ForkedAgentConfig.OnUsage callback that appends
+// each background fork's usage to the turn-timing log at path, tagged with
+// its query source, so fork cost sits next to the foreground turns. An empty
+// path disables logging (nil callback); write failures go to debugLogf.
+func logForkUsage(path string, debugLogf func(string, ...any)) func(engine.ForkUsage) {
+	if path == "" {
+		return nil
+	}
+	return func(u engine.ForkUsage) {
+		rec := turnlog.Record{
+			Start:               u.Start,
+			End:                 u.End,
+			DurationMs:          u.End.Sub(u.Start).Milliseconds(),
+			Outcome:             u.Outcome,
+			QuerySource:         u.QuerySource,
+			SessionID:           u.SessionID,
+			Cwd:                 u.WorkingDir,
+			Model:               u.Model,
+			APIRequests:         u.APIRequests,
+			ToolCalls:           u.ToolCalls,
+			InputTokens:         u.InputTokens,
+			OutputTokens:        u.OutputTokens,
+			CacheReadTokens:     u.CacheRead,
+			CacheCreationTokens: u.CacheCreated,
+		}
+		if err := turnlog.Append(path, rec); err != nil && debugLogf != nil {
+			debugLogf("bootstrap: fork usage log: %v", err)
+		}
+	}
+}
+
 func registerMemoryStopHooks(
 	stopHooks *engine.StopHookRegistry,
 	settings *config.LayeredSettings,
@@ -526,6 +558,7 @@ func registerMemoryStopHooks(
 	extractCfg := memdir.DefaultExtractConfig()
 	extractCfg.Store = store
 	extractCfg.Logf = debugLogf
+	extractCfg.OnUsage = logForkUsage(turnlog.DefaultPath(), debugLogf)
 	extractCfg.Enabled = memdir.IsExtractMemoriesEnabled(false, settingsAutoMemoryEnabled(settings))
 	stopHooks.Register("extract_memories", func(ctx context.Context, hookCtx *engine.StopHookContext) {
 		if !enabled {
@@ -537,6 +570,7 @@ func registerMemoryStopHooks(
 	dreamCfg := memdir.DefaultAutoDreamConfig()
 	dreamCfg.Store = store
 	dreamCfg.Logf = debugLogf
+	dreamCfg.OnUsage = extractCfg.OnUsage
 	dreamCfg.Enabled = memdir.IsAutoDreamEnabled(false, settingsAutoMemoryEnabled(settings))
 	stopHooks.Register("auto_dream", func(ctx context.Context, hookCtx *engine.StopHookContext) {
 		if !enabled {

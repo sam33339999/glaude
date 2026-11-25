@@ -2,7 +2,7 @@
 package: fs
 import_path: pkg/utils/fs
 layer: types
-generated_at: 2026-11-23T14:09:22Z
+generated_at: 2026-11-25T17:04:06Z
 source_files: [fs.go]
 ---
 

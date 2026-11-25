@@ -372,6 +372,9 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.syncViewportContent()
 		return m, nil
 
+	case MemoryEventMsg:
+		return m.handleMemoryEvent(msg.Event)
+
 	case DreamDoneMsg:
 		if msg.Err != "" {
 			m.messages = append(m.messages, newSystemErrorMessage("Dream consolidation failed: "+msg.Err))

@@ -275,15 +275,18 @@ func (t *memoryWriteTool) Call(input tools.Input, ctx *tools.UseContext, _ tools
 		Body: in.Content,
 	}
 
-	if err := store.WriteMemory(mf); err != nil {
+	// Write and rebuild the index under one lock.
+	indexErr, err := store.SaveMemory(mf)
+	if err != nil {
+		emitMemoryEvent(ctx, tools.MemoryEvent{Op: "write", Name: in.Title, Err: err.Error()})
 		return &tools.Result{IsError: true, Content: fmt.Sprintf("write memory: %v", err)}, nil
 	}
-
-	// Rebuild the index after writing.
-	if err := store.BuildIndex(); err != nil {
+	if indexErr != nil {
 		// Non-fatal: the memory was written, index rebuild failed.
-		return &tools.Result{Content: fmt.Sprintf("Memory %q saved (warning: index rebuild failed: %v)", in.Title, err)}, nil
+		emitMemoryEvent(ctx, tools.MemoryEvent{Op: "write", Name: in.Title, Warning: "index rebuild failed: " + indexErr.Error()})
+		return &tools.Result{Content: fmt.Sprintf("Memory %q saved (warning: index rebuild failed: %v)", in.Title, indexErr)}, nil
 	}
+	emitMemoryEvent(ctx, tools.MemoryEvent{Op: "write", Name: in.Title})
 
 	return &tools.Result{Content: fmt.Sprintf("Memory %q saved successfully as type %q.", in.Title, memType)}, nil
 }
@@ -370,17 +373,32 @@ func (t *memoryDeleteTool) Call(input tools.Input, ctx *tools.UseContext, _ tool
 		return &tools.Result{IsError: true, Content: "memory store not available (no project directory)"}, nil
 	}
 
-	if err := store.DeleteMemory(in.Name); err != nil {
+	// Delete and rebuild the index under one lock.
+	indexErr, err := store.RemoveMemory(in.Name)
+	if err != nil {
+		emitMemoryEvent(ctx, tools.MemoryEvent{Op: "delete", Name: in.Name, Err: err.Error()})
 		return &tools.Result{IsError: true, Content: fmt.Sprintf("delete memory: %v", err)}, nil
 	}
-
-	// Rebuild the index after deletion.
-	_ = store.BuildIndex()
+	ev := tools.MemoryEvent{Op: "delete", Name: in.Name}
+	if indexErr != nil {
+		ev.Warning = "index rebuild failed: " + indexErr.Error()
+	}
+	emitMemoryEvent(ctx, ev)
 
 	return &tools.Result{Content: fmt.Sprintf("Memory %q deleted successfully.", in.Name)}, nil
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+// emitMemoryEvent reports ev to the context's MemoryEvents sink (if any),
+// tagged with the call's query source.
+func emitMemoryEvent(ctx *tools.UseContext, ev tools.MemoryEvent) {
+	if ctx == nil || ctx.MemoryEvents == nil {
+		return
+	}
+	ev.QuerySource = ctx.QuerySource
+	ctx.MemoryEvents.MemoryEvent(ev)
+}
 
 // getStore extracts the MemoryStore from the UseContext.
 // Returns nil if no store is available.

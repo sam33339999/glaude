@@ -23,7 +23,7 @@
 
 ### 待处理问题（改相关代码前先看）
 
-- **记忆萃取每轮重送整段历史（token 成本）**：`extract_memories` stop hook 每个 `end_turn` 都跑，fork 带完整 `ContextMessages`、最多 3 回合、无节流。临时缓解 `autoMemoryEnabled: false`。详见 [`docs/project/discussions/2026-11-21-memory-extract-token-cost.md`](docs/project/discussions/2026-11-21-memory-extract-token-cost.md)（另开分支处理）。
+- **记忆萃取的 token 成本（大部分已处理，分支 `fix/memory-extract-cost`）**：已加节流（`ExtractThrottle`：≥2000 bytes 新文字或 5 轮才跑）、fork 改用与主对话相同的工具清单（以便命中 prompt cache）、fork 用量写入 `turn-timings.jsonl`（`query_source`）。**待定**：fork 送整段历史还是只送新增部分，需按实测 cache 命中率决定；compaction 前补跑未做。详见 [`docs/project/discussions/2026-11-21-memory-extract-token-cost.md`](docs/project/discussions/2026-11-21-memory-extract-token-cost.md)。
 
 ## Environment Setup
 

@@ -130,6 +130,11 @@ type UseContext struct {
 	Coordinator AgentCoordinator
 	// AgentID is the ID of the current agent ("" for main session).
 	AgentID string
+	// QuerySource tags the query loop running this call: "foreground" for
+	// the interactive turn, or a fork's source such as "extract_memories".
+	// Set by the engine from QueryParams.QuerySource ("" = unknown). Use it
+	// to attribute work, not to grant or deny tools (see ExecFilter).
+	QuerySource string
 	// ExecFilter mirrors engine.QueryParams.ToolFilter for the orchestration
 	// layer (nil = every tool may run).
 	ExecFilter func(t Tool, input Input) (allowed bool, reason string)
@@ -144,6 +149,10 @@ type UseContext struct {
 	// MemoryStore is the project memory store injected by bootstrap/TUI.
 	// Concrete type: *memdir.MemoryStore (set in internal/tools/memory).
 	MemoryStore any
+	// MemoryEvents, when set, is told about every memory write/delete the
+	// memory tools perform (and their failures), so the main loop can show
+	// what background forks did. Forks inherit it from the parent context.
+	MemoryEvents MemoryEventSink
 	// CacheParams holds the parent query's cache-safe prefix snapshot
 	// (concrete type: *engine.CacheSafeParams), refreshed by the engine at
 	// each turn boundary. The Agent tool passes it to spawned forks so they
@@ -158,6 +167,27 @@ type UseContext struct {
 	// (settings.json "hooks" stdin payload). Empty when unknown.
 	SessionID      string
 	TranscriptPath string
+}
+
+// MemoryEvent describes one memory write or delete performed by a memory tool.
+type MemoryEvent struct {
+	// Op is "write" or "delete".
+	Op string
+	// Name is the memory title (write) or name (delete).
+	Name string
+	// QuerySource is the UseContext.QuerySource of the call ("foreground",
+	// "extract_memories", ...).
+	QuerySource string
+	// Err is set when the operation failed; Warning when it succeeded but
+	// the index rebuild did not.
+	Err     string
+	Warning string
+}
+
+// MemoryEventSink receives MemoryEvents. Implementations must not block:
+// they are called from tool goroutines, including background forks.
+type MemoryEventSink interface {
+	MemoryEvent(MemoryEvent)
 }
 
 // ValidationResult is the output of ValidateInput.

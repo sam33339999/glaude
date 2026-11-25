@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -224,25 +225,28 @@ func TestRunForkedAgent_ContextCancellation(t *testing.T) {
 func TestRunForkedAgent_AllowedToolsFilter(t *testing.T) {
 	t.Parallel()
 
-	// Track which tools appear in the API request.
-	var capturedReq *api.MessageRequest
+	// The fork asks for Bash (not allowed), then Read (allowed), then ends.
 	var mu sync.Mutex
-
-	events := buildEndTurnEvents("done")
+	var reqs []*api.MessageRequest
 	client := &mockClient{
 		streamFn: func(_ context.Context, req *api.MessageRequest) (api.StreamReader, error) {
 			mu.Lock()
-			capturedReq = req
+			reqs = append(reqs, req)
+			n := len(reqs)
 			mu.Unlock()
-			return newStaticReader(events...), nil
+			switch n {
+			case 1:
+				return newStaticReader(buildToolUseEvents("call_bash", "Bash", `{}`)...), nil
+			case 2:
+				return newStaticReader(buildToolUseEvents("call_read", "Read", `{}`)...), nil
+			}
+			return newStaticReader(buildEndTurnEvents("done")...), nil
 		},
 	}
 
-	reg := newTestRegistry(
-		&stubTool{name: "Read", safe: true},
-		&stubTool{name: "Write", safe: false},
-		&stubTool{name: "Bash", safe: false},
-	)
+	read := &recordingTool{stubTool: stubTool{name: "Read", safe: true}}
+	bash := &recordingTool{stubTool: stubTool{name: "Bash", safe: false}}
+	reg := newTestRegistry(read, &stubTool{name: "Write", safe: false}, bash)
 	eng := New(Config{Client: client, Registry: reg, Model: "claude-test"})
 
 	cfg := ForkedAgentConfig{
@@ -255,37 +259,83 @@ func TestRunForkedAgent_AllowedToolsFilter(t *testing.T) {
 			SystemPrompt:   SystemPrompt{},
 			ToolUseContext: &tools.UseContext{Ctx: context.Background()},
 		},
-		AllowedTools: []string{"Read"}, // Only Read should be available.
+		QuerySource:  "test_fork",
+		AllowedTools: []string{"Read"},
 	}
 
-	_, err := RunForkedAgent(context.Background(), eng, cfg)
+	msgs, err := RunForkedAgent(context.Background(), eng, cfg)
 	if err != nil {
 		t.Fatalf("RunForkedAgent returned error: %v", err)
 	}
 
 	mu.Lock()
-	req := capturedReq
-	mu.Unlock()
-
-	if req == nil {
-		t.Fatal("expected API request to be captured")
+	defer mu.Unlock()
+	if len(reqs) != 3 {
+		t.Fatalf("want 3 requests, got %d", len(reqs))
+	}
+	// Every tool stays in the request (same list as the parent → shared cache prefix).
+	var names []string
+	for _, ts := range reqs[0].Tools {
+		names = append(names, ts.Name)
+	}
+	if got := strings.Join(names, ","); got != "Read,Write,Bash" {
+		t.Errorf("request tools = %s, want the full registry Read,Write,Bash", got)
 	}
 
-	// Only "Read" should be in the tools list.
-	toolNames := make(map[string]bool)
-	for _, ts := range req.Tools {
-		toolNames[ts.Name] = true
+	if bash.calls() != 0 {
+		t.Error("Bash is not allowed and must not run")
+	}
+	if read.calls() != 1 {
+		t.Errorf("Read ran %d times, want 1", read.calls())
+	}
+	if src := read.lastSource(); src != "test_fork" {
+		t.Errorf("UseContext.QuerySource = %q, want test_fork", src)
 	}
 
-	if !toolNames["Read"] {
-		t.Error("expected Read tool to be included")
+	// The refusal goes back to the model as an error result naming the allowed tools.
+	refused := false
+	for _, m := range msgs {
+		for _, b := range m.Content {
+			if b.Type == types.ContentTypeToolResult && b.ToolUseID != nil && *b.ToolUseID == "call_bash" &&
+				b.IsError != nil && *b.IsError && len(b.Content) > 0 && b.Content[0].Text != nil &&
+				strings.Contains(*b.Content[0].Text, "Only these tools can be used: Read") {
+				refused = true
+			}
+		}
 	}
-	if toolNames["Write"] {
-		t.Error("Write tool should be excluded")
+	if !refused {
+		t.Error("expected an error tool_result for call_bash naming the allowed tools")
 	}
-	if toolNames["Bash"] {
-		t.Error("Bash tool should be excluded")
+}
+
+// recordingTool is a stubTool that counts calls and the query source it saw.
+type recordingTool struct {
+	stubTool
+	mu     sync.Mutex
+	n      int
+	source string
+}
+
+func (r *recordingTool) Call(in tools.Input, uctx *tools.UseContext, p tools.OnProgressFn) (*tools.Result, error) {
+	r.mu.Lock()
+	r.n++
+	if uctx != nil {
+		r.source = uctx.QuerySource
 	}
+	r.mu.Unlock()
+	return r.stubTool.Call(in, uctx, p)
+}
+
+func (r *recordingTool) calls() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.n
+}
+
+func (r *recordingTool) lastSource() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.source
 }
 
 func TestRunForkedAgent_NilEngine(t *testing.T) {

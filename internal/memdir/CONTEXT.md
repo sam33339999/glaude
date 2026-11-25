@@ -2,23 +2,24 @@
 package: memdir
 import_path: internal/memdir
 layer: services
-generated_at: 2026-11-24T06:00:34Z
-source_files: [discover.go, dream.go, extract.go, extract_prompt.go, freshness.go, gate.go, include.go, loader.go, quick_memory.go, relevance.go, scope.go, secret_scanner.go, session_memory.go, status.go, store.go, types.go]
+generated_at: 2026-11-25T17:04:06Z
+source_files: [discover.go, dream.go, extract.go, extract_prompt.go, extract_throttle.go, fork.go, freshness.go, gate.go, include.go, loader.go, lock.go, lock_other.go, lock_unix.go, lock_windows.go, quick_memory.go, relevance.go, scope.go, secret_scanner.go, session_memory.go, status.go, store.go, types.go]
 ---
 
 # internal/memdir
 
-> Layer: **Services** · Files: 16 · Interfaces: 0 · Structs: 10 · Functions: 34
+> Layer: **Services** · Files: 22 · Interfaces: 0 · Structs: 11 · Functions: 35
 
 ## Structs
 
-- **AutoDreamConfig** — 3 fields: Store, Enabled, Logf
+- **AutoDreamConfig** — 4 fields: Store, Enabled, Logf, OnUsage
 - **DiscoveredFile** — 2 fields: Path, Scope
-- **ExtractMemoriesConfig** — 4 fields: Store, MaxTurns, Enabled, Logf
+- **ExtractMemoriesConfig** — 6 fields: Store, MaxTurns, Enabled, Logf, Throttle, OnUsage
+- **ExtractThrottle** — 11 fields: MinNewChars, MaxTurns
 - **MemoryFile** — 3 fields: Header, Body, Path
 - **MemoryHeader** — 6 fields: Title, Type, CreatedAt, UpdatedAt, Tags, Source
 - **MemoryPathOptions** — 1 fields: AutoMemoryDirectory
-- **MemoryStore** — 1 fields
+- **MemoryStore** — 2 fields
 - **RelevanceConfig** — 3 fields: MaxMemoriesPerTurn, MaxMemoryBytes, MaxSessionBytes
 - **RelevantMemory** — 4 fields: Path, Title, Content, FreshnessNote
 - **SessionMemoryConfig** — 2 fields: SessionID, HomeDir
@@ -48,6 +49,7 @@ source_files: [discover.go, dream.go, extract.go, extract_prompt.go, freshness.g
 - `LoadScopedMemoryPrompt(files []DiscoveredFile) string`
 - `MemoryAge(updatedAt time.Time) string`
 - `MemoryFreshnessText(updatedAt time.Time) string`
+- `NewExtractThrottle() *ExtractThrottle`
 - `NewMemoryStore(projectDir string) (*MemoryStore, error)`
 - `NewMemoryStoreWithOptions(projectDir string, opts MemoryPathOptions) (*MemoryStore, error)`
 - `NewMemoryStoreWithPath(memoryDir string) *MemoryStore`
@@ -88,7 +90,7 @@ source_files: [discover.go, dream.go, extract.go, extract_prompt.go, freshness.g
 
 ## Dependencies
 
-**Imports:** `internal/engine`, `internal/textutil`, `pkg/types`
+**Imports:** `internal/engine`, `internal/textutil`, `internal/tools`, `pkg/types`
 
 **Imported by:** `internal/bootstrap`, `internal/commands`, `internal/tools/memory`, `internal/tui`
 

@@ -28,10 +28,9 @@ func SaveQuickMemory(store *MemoryStore, text string) (string, error) {
 		},
 		Body: text,
 	}
-	if err := store.WriteMemory(mf); err != nil {
+	if _, err := store.SaveMemory(mf); err != nil {
 		return "", err
 	}
-	_ = store.BuildIndex()
 	return quickMemoryAck(), nil
 }
 

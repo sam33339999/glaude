@@ -2,7 +2,7 @@
 package: web
 import_path: internal/tools/web
 layer: tools
-generated_at: 2026-11-23T14:09:22Z
+generated_at: 2026-11-25T17:04:06Z
 source_files: [doc.go, webfetch.go, websearch.go]
 ---
 

@@ -1,7 +1,7 @@
 # 記憶萃取（extract_memories）每輪重送整段歷史：token 成本問題
 
 > 日期：2026-11-21
-> 狀態：**待處理**（另開分支處理；本文只記錄問題與選項）
+> 狀態：**PR 1–4 已實作**（分支 `fix/memory-extract-cost`，2026-11-26）；萃取送整段歷史或只送新增部分，**待實測後決定**，見文末「進度」
 > 發現於：`fix/openai-tool-arguments`（同分支修了萃取 agent 觸發的 400 與 log 蓋畫面）
 
 ## 現象
@@ -39,7 +39,7 @@ memdir: extract memories: engine: forked agent: engine: stream: API error 400:
 
 **粗估**：快取沒命中時，每輪 input token 大約是原本的 2～4 倍，對話越長越明顯。這是推算，**沒有實測**，處理前應先量一次（`--debug` 或 provider 的帳單／usage）。
 
-`auto_dream` 也用同樣的 CacheParams，但有鎖檔節流（`minHoursBetweenDream = 24`），影響小。
+`auto_dream` 也用同樣的 CacheParams，但有鎖檔節流（`minHoursBetweenDream = 24`），影響小。（2026-11-26 更正：這個節流原本沒有作用。`touchConsolidateLock` 不會更新已存在鎖檔的 mtime，所以鎖檔一旦超過 24 小時，之後每輪都會跑 dream。已在 review 第二輪修正。）
 
 ## 緩解（使用者側，立即可用）
 
@@ -72,3 +72,101 @@ memdir: extract memories: engine: forked agent: engine: stream: API error 400:
 - `internal/engine/stop_hooks.go`、`internal/engine/cache_params.go`、`internal/engine/forked_agent.go`
 - `internal/memdir/extract.go`、`internal/memdir/dream.go`
 - `internal/bootstrap/wire.go`（`registerMemoryStopHooks`）
+
+## 實測補充（2026-11-25，rs-stream session `1795612667200-4f8738e23eae8d90`）
+
+- **萃取確實每輪都在跑**：rs-stream 的 memory 目錄在 22:20、22:25、22:30、22:33、22:37 都有寫入，時間跟各輪結束對得上；22:37 那次在最後一輪結束之後。
+- **fork 的用量完全沒有記錄**：`turn-timings.jsonl` 只記前景那一輪，`RunForkedAgent` 沒有累計 usage。
+- **前景實際用量**（14 輪、51 個 request、glm-5.4）：沒命中快取的 input 0.75M，cache read 3.1M。
+- **fork 推算**：每輪的歷史從約 27k 長到 107k token（用「jsonl 字元數 ÷ 3」估），一個 session 共 1.0M～3.1M。如果完全沒命中快取，沒命中快取的 input 大約是原本的 **2.3～5 倍**。
+- **另一個 bug**：`buildConversationSummary` 取最後 20 則訊息後，從最舊的往新的累加，超過 4000 字就停，結果截掉的是**最新**的內容。
+- **另一個 race**：`MemoryStore` 完全沒有鎖。主對話的 `MemoryWrite`、萃取、dream，以及同一個專案的其他 glaude process，可能同時改檔；`BuildIndex` 會整份重寫 `MEMORY.md`。
+
+## 決策（2026-11-25）
+
+考慮過三種寫入模型：
+
+| 模型 | 結論 | 理由 |
+|------|------|------|
+| fork 只能提議，由主 loop 審核 | ✗ | 沒有人能有效審核：交給主模型要多打一次 LLM，交給使用者會太煩，用程式規則判斷則可以直接放在寫入層 |
+| fork 的寫入一律交給主 loop 代寫（透過 channel） | ✗ | 解決不了跨 process 的 race；跟 bubbletea 和結束時的清空綁在一起；fork 拿不到真正的寫入結果 |
+| **fork 直接寫，store 層加鎖讓寫入排隊；channel 只回報事件** | ✓ | 一致性在 store 層解決，連跨 process 都涵蓋；fork 拿得到真實結果；主 loop 透過事件看得到狀態和錯誤 |
+
+另外：
+- fork 改用**跟主對話相同的工具清單**，在執行階段用 `ToolFilter` 只放行 Memory* 工具，讓 request 前綴跟主對話一致，才有機會命中快取。
+- 在 `UseContext` 加明確的 `QuerySource` 欄位，用來標記來源，不用 `ctx.Value`。這個欄位只用來標記和過濾工具，**不用來阻擋寫入**。
+- 節流照樣要做。相同工具清單只讓單次萃取變便宜，不會減少萃取次數。
+
+## 實作計畫
+
+四個 PR，依序做。每一步都用 turn-timings 比較前後差異。
+
+### PR 1：量測（先做，其他步驟都靠它驗證）
+- `RunForkedAgent` 加總 channel 上每個 `MsgTypeTurnComplete` 的 usage，連同 request 次數一起回傳。
+- `ExtractMemoriesConfig`／`AutoDreamConfig` 加 `OnUsage` 回呼，由 bootstrap 接上。
+- `turnRecord` 加 `query_source` 欄位（前景是 `foreground`，舊資料沒有這個欄位時視為 foreground）。fork 的紀錄寫進同一個 `turn-timings.jsonl`。
+- 在 rs-stream 跑一段 session，留下**基準線**。
+- fork 一律設 `NoCompaction: true`。fork 內的 compaction 會打一次不會被記錄的摘要請求，還會破壞跟主對話共用的前綴；歷史太長時讓 fork 直接失敗。
+- **量測的已知缺口**（review 時發現，解讀數據時要記得）：
+  - 只有 TUI session 會留下紀錄：`-p` 模式下 process 會在背景 fork 跑完前就退出。
+  - fork 還沒跑完就離開 TUI，那次已經計費，但沒有紀錄，所以數字會偏低。
+  - 串流讀到一半失敗的那一次，usage 不會計入。
+  - `tool_calls` 的定義前景和 fork 不同：前景數模型開始的 tool_use，fork 數產生的 tool result（包含被擋下的）。見 `turnlog.Record` 的註解。
+  - fork 的紀錄跟觸發它的前景回合之間沒有關聯鍵，只能用 session_id 加時間去對。PR 4 需要逐輪比較時再加 turn 序號。
+  - 後續再處理：`/dream`（`RunManualDream`）還沒接上，接的時候要給它獨立的 source（`manual_dream`）；紀錄路徑改從 `opts.HomeDir` 推導（目前跟 TUI 一樣用 `os.UserHomeDir()`）。
+
+### PR 2：相同工具清單加執行階段過濾
+- `ForkedAgentConfig.AllowedTools` 改成產生 `ToolFilter`，不再產生 `ExcludeTools`，工具清單維持跟主對話相同。被擋下的工具回傳明確的原因。
+- `UseContext` 加 `QuerySource`，由 engine 在建立 `UseContext` 時填入。
+- 萃取用的 prompt 明確寫「只能用 MemoryRead/MemoryWrite/MemoryDelete」，避免浪費回合。
+- 測試：fork 的 request 工具清單跟主對話相同；fork 呼叫 Bash 會被擋。
+- **再量一次，這個結果決定 PR 4 要送什麼**：
+  - fork 的 cache read 佔總 prompt ≥ 80%：保留整段歷史。
+  - 否則改成只送游標之後的新訊息（選項 C）。
+
+### PR 3：store 一致性加上 MemoryEvents
+- `MemoryStore` 加 `sync.Mutex`，`WriteMemory`／`DeleteMemory`／`BuildIndex` 放進同一個臨界區。
+- 跨 process 用檔案鎖（memory 目錄裡的 `.lock`，`flock`）。
+- `MEMORY.md` 和各記憶檔改成先寫暫存檔、再 rename。
+- `UseContext` 注入 `MemoryEvents` 介面（例如 `Emit(MemoryEvent)`）。memory 工具只依賴這個介面，符合工具之間不互相 import 的規則。
+- TUI 接收事件：狀態列顯示「背景記住了 X」或錯誤，取代現在只寫進 `logf`、使用者看不到的狀況。
+- 測試：多個 goroutine 同時寫；兩個 store 實例（模擬兩個 process）同時重建 index。
+
+### PR 4：節流和萃取內容
+- 加一個游標：記錄上次萃取到第幾則訊息（每個 session 一份，用 mutex 保護）。
+- 觸發條件：游標之後新增的文字 ≥ 2000 字，**或**距離上次已過 5 輪。這兩個數字先寫成常數，要不要做成設定，看量測結果再決定。
+- compaction 之前補跑一次，因為 compaction 後舊歷史就不見了。session 結束時是否補跑先不做，列為後續。
+- 依 PR 2 的結論決定送整段歷史還是只送新增部分。
+- 修 `buildConversationSummary`：改成從最新的往回取，優先保留最新的內容。
+- 量測：跟 PR 1 的基準線比，目標是萃取相關的沒命中快取 input 降到前景的 ≤ 20%。
+
+### 收尾
+- 修完後從 `.claude/CLAUDE.md` 的「待處理問題」移除這一項，本文狀態改成「已完成」。
+
+## 進度（2026-11-26）
+
+| PR | commit | 狀態 |
+|----|--------|------|
+| 1 量測 | `8e52bf7` + review 修正 `f08ae8d` | ✅ |
+| 2 相同工具清單加執行階段過濾 | `bf34fd9` | ✅ |
+| 3 store 一致性加 MemoryEvents | `ad9cf8a` | ✅ |
+| 4 節流和摘要 | 本 commit | ✅（有部分延後，見下） |
+
+PR 4 實作的內容：
+- `ExtractThrottle`：每個 session 一個游標。游標之後新增的文字 ≥ 2000 bytes，或已過 5 輪且有任何新文字，才會萃取；同一時間只跑一個萃取。歷史變短（compaction、/clear）或換 session 時，游標歸零。主模型這一輪已經寫過記憶時，視為已處理，游標直接往前移。
+- 萃取摘要只涵蓋游標之後的新訊息，而且改成由新往舊取，超過上限時丟掉的是舊內容（修掉截掉最新內容的 bug）。
+
+延後或待決定：
+- **送整段歷史還是只送新增部分**：PR 2 之後 fork 的 request 前綴跟主對話一致，理論上能命中快取，但**還沒有實測**。目前保留送整段歷史，只靠節流把次數降下來。用 turn-timings 量到 `extract_memories` 的 cache read 佔總 prompt 的比例後再決定：≥ 80% 就維持現狀，否則改成只送新增部分（`ContextMessages` 留空，只送 extraction prompt）。
+- **compaction 前補跑一次萃取**：engine 目前沒有 compaction 前的同步 hook，要新增一個擴充點，所以延後。游標旁邊會存「游標前一則訊息」的指紋，compaction 或 /clear 之後就算歷史又長回超過游標，也能偵測到並歸零。代價有兩個：compaction 前還沒萃取、門檻內的新內容會漏掉（< 2000 bytes 或 < 5 輪）；compaction 的摘要會被當成新內容再萃取一次。
+- session 結束時補跑、`/dream` 記用量（`manual_dream`）、紀錄路徑改用 `opts.HomeDir`、fork 紀錄和前景回合的關聯鍵：同 PR 1 的已知缺口。
+
+### Review 第二輪（PR 2–4）修正
+
+- **acceptEdits 模式下，萃取和 dream 完全寫不進記憶，也不會顯示**：checker 在 acceptEdits 分支會先回 Ask，fork 的 NonInteractive 再把 Ask 轉成 Deny。修法：acceptEdits 分支先看工具自己的 `CheckPermissions`，回 Allow 就放行（目前只有 memory 工具會這樣），前景在 acceptEdits 下也不會再為 MemoryWrite 跳詢問。另外新增 `runMemoryFork`：如果 Memory* 工具回傳的錯誤比工具自己發的錯誤事件多，補發一個錯誤事件，plan 模式或 deny 規則擋下時也看得到；`/dream` 在這種情況會回報失敗，不再回報成功。
+- **`hasMemoryWritesSince` 在實際對話裡永遠回 false**：tool_result 也是 user role，往回掃到它就停了。改成跳過只含 tool_result 的訊息。
+- **compaction 後游標可能指錯位置**：加上指紋偵測（見上）。
+- **fork 失敗時，游標已經往前移，那段內容就丟了**：改成 `done(ok)`，失敗時把游標退回原位（前提是游標在這段期間沒被重設或 captured 移動過）。
+- **dream 的 24 小時節流沒有作用**：`touchConsolidateLock` 改用 `Chtimes` 更新 mtime。
+- **Windows**：用 rename 取代正被讀取的檔案時，可能出現 access denied 或 sharing violation，改成短暫重試（未在 Windows 上實測）。
+- 小問題：截斷時保留最舊那則的尾端，並且不超過上限；`/dream` 的來源標記改成 `manual_dream`。

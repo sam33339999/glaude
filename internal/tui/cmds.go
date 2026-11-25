@@ -121,6 +121,7 @@ func startQueryCmd(m *AppModel, userText string, fromUser bool) tea.Cmd {
 			Ctx:            ctx,
 			Coordinator:    m.agentCoordinator,
 			MemoryStore:    m.memoryStore,
+			MemoryEvents:   m.memEvents,
 			WorkingDir:     m.appState.GetState().WorkingDir,
 			SessionID:      m.transcript.SessionID(),
 			TranscriptPath: m.transcript.Path(),
@@ -271,8 +272,9 @@ func triggerDreamCmd(m *AppModel) tea.Cmd {
 				Parts: []engine.SystemPromptPart{{Text: m.memdirPrompt}},
 			},
 			ToolUseContext: &tools.UseContext{
-				Ctx:         context.Background(),
-				MemoryStore: m.memoryStore,
+				Ctx:          context.Background(),
+				MemoryStore:  m.memoryStore,
+				MemoryEvents: m.memEvents,
 			},
 		}
 		err := memdir.RunManualDream(context.Background(), m.queryEngine, cache, m.memoryStore)

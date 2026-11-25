@@ -169,7 +169,7 @@ func TestTurnTiming_DoneShowsAndLogs(t *testing.T) {
 	want := map[string]any{
 		"outcome": "done", "duration_ms": float64(83000), "api_requests": float64(2),
 		"tool_calls": float64(1), "input_tokens": float64(150), "output_tokens": float64(30),
-		"model": "test-model", "cwd": "/tmp",
+		"model": "test-model", "cwd": "/tmp", "query_source": "foreground",
 		"cache_read_tokens": float64(8300), "cache_creation_tokens": float64(300),
 	}
 	for k, v := range want {

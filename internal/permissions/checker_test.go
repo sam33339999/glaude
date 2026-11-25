@@ -374,3 +374,20 @@ func TestChecker_ModeFnLiveOverride(t *testing.T) {
 		t.Errorf("default again: expected Ask, got %v", res.Behavior)
 	}
 }
+
+// acceptEdits must not be stricter than default mode for a tool whose own
+// CheckPermissions allows it (memory tools); other write tools still ask.
+func TestCanUseTool_AcceptEditsHonoursToolAllow(t *testing.T) {
+	selfAllow := &stubPermTool{name: "MemoryWrite", permBehavior: tools.PermissionAllow}
+	plainWrite := &stubPermTool{name: "Bash"}
+	c := NewChecker(CheckerConfig{
+		PermCtx:  types.ToolPermissionContext{Mode: types.PermissionModeAcceptEdits},
+		Registry: newStubRegistry(selfAllow, plainWrite),
+	})
+	if r, _ := c.CanUseTool(context.Background(), "MemoryWrite", nil, nil); r.Behavior != tools.PermissionAllow {
+		t.Errorf("MemoryWrite in acceptEdits = %q, want allow", r.Behavior)
+	}
+	if r, _ := c.CanUseTool(context.Background(), "Bash", nil, nil); r.Behavior != tools.PermissionAsk {
+		t.Errorf("Bash in acceptEdits = %q, want ask", r.Behavior)
+	}
+}
